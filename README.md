@@ -1,4 +1,4 @@
-# stream-deflate
+# stream-deflate [![CircleCI](https://circleci.com/gh/michalc/stream-deflate.svg?style=shield)](https://circleci.com/gh/michalc/stream-deflate) [![Test Coverage](https://api.codeclimate.com/v1/badges/1131e6ac6efb36647a9b/test_coverage)](https://codeclimate.com/github/michalc/stream-deflate/test_coverage)
 
 Uncompress DEFLATE streams in pure Python.
 
