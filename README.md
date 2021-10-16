@@ -24,5 +24,5 @@ def compressed_chunks():
         yield from r.iter_raw(chunk_size=65536)
 
 for uncompressed_chunk in stream_deflate(compressed_chunks()):
-	print(uncompressed_chunk)
+    print(uncompressed_chunk)
 ```
