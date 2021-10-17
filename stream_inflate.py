@@ -96,11 +96,11 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 cache = (cache + chunk)[-size:]
                 yield chunk
 
-        def from_cache(backwards_dist, length):
-            if backwards_dist > len(cache):
+        def from_cache(dist, length):
+            if dist > len(cache):
                 raise Exception('Searching backwards too far')
 
-            start = len(cache) - backwards_dist
+            start = len(cache) - dist
             end = max(start + length, len(cache))
             chunk = cache[start:end]
             while length:
@@ -162,14 +162,13 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                     elif literal_stop_or_length_code == 256:
                         break
                     else:
-                        extra_bits, diff = lengths_extra_bits_diffs[literal_stop_or_length_code - 257]
-                        extra = int.from_bytes(get_bits(extra_bits), byteorder='big')
-                        length = diff + extra
-                        extra_bits, diff = distances_extra_bits_diffs[get_backwards_dist_code()]
-                        extra_raw = get_bits(extra_bits)
-                        extra = int.from_bytes(extra_raw, byteorder='big')
-                        backwards_dist = diff + extra
-                        yield from via_cache(from_cache(backwards_dist, length))
+                        length_extra_bits, length_diff = lengths_extra_bits_diffs[literal_stop_or_length_code - 257]
+                        length_extra = int.from_bytes(get_bits(length_extra_bits), byteorder='big')
+
+                        dist_extra_bits, dist_diff = distances_extra_bits_diffs[get_backwards_dist_code()]
+                        dist_extra = int.from_bytes(get_bits(dist_extra_bits), byteorder='big')
+
+                        yield from via_cache(from_cache(dist=dist_extra + dist_diff, length=length_extra + length_diff))
             else:
                 raise UnsupportedBlockType(b_type)
 
