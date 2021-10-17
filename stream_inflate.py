@@ -74,5 +74,5 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
     yield from upcompressed(get_bits, get_bytes, yield_bytes)
 
 
-class TruncatedDataError():
+class TruncatedDataError(Exception):
     pass
