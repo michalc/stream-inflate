@@ -11,6 +11,25 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
         [8] * 8
     fixed_distances = \
         [5] * 32
+    lengths_extra_bits_diffs = (
+        (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10),
+        (1, 11), (1, 13), (1, 15), (1, 17),
+        (2, 19), (2, 23), (2, 27), (2, 31),
+        (3, 35), (3, 43), (3, 51), (3, 59),
+        (4, 67), (4, 83), (4, 99), (4, 115),
+        (5, 131), (5, 163), (5, 195), (5, 227),
+        (0, 258),
+    )
+    distances_extra_bits_diffs = (
+        (0, 1), (0, 2), (0, 3), (0, 4),
+        (1, 5), (1, 7), (2, 9), (2, 13),
+        (3, 17), (3, 25), (4, 33), (4, 49),
+        (5, 65), (5, 97), (6, 129), (6, 193),
+        (7, 257), (7, 385), (8, 513), (8, 769),
+        (9, 1025), (9, 1537), (10, 2049), (10, 3073),
+        (11, 4097), (11, 6145), (12, 8193), (12, 12289),
+        (13, 16385), (13, 24577),
+    )
 
     def get_readers(iterable):
         chunk = b''
@@ -71,13 +90,23 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
     def get_backwards_cache(size):
         cache = b''
 
-        def via_cache(bs):
+        def via_cache(bytes_iter):
             nonlocal cache
-            cache = (cache + bs)[:size]
-            return bs
+            for chunk in bytes_iter:
+                cache = (cache + chunk)[:size]
+                yield chunk
 
         def from_cache(backwards_dist, length):
-            return cache[-backwards_dist:- backwards_dist + length]
+            if backwards_dist > len(cache):
+                raise Exception('Searching backwards too far')
+
+            start = len(cache) - backwards_dist
+            end = max(start + length, len(cache))
+            chunk = cache[start:end]
+            while length:
+                to_yield = chunk[:length]
+                yield to_yield
+                length -= len(to_yield)
 
         return via_cache, from_cache
 
@@ -129,40 +158,19 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 while True:
                     value = get_next()
                     if value < 256:
-                        yield via_cache(chr(value).encode())
+                        yield from via_cache((chr(value).encode(),))
                     elif value == 256:
                         break
                     else:
-                        extra_bits, diff = \
-                            (0, -254) if value < 265 else \
-                            (1, -254) if value < 269 else \
-                            (2, -250) if value < 273 else \
-                            (3, -238) if value < 277 else \
-                            (4, -210) if value < 281 else \
-                            (5, -150) if value < 285 else \
-                            (0, -27)
+                        extra_bits, diff = lengths_extra_bits_diffs[value - 257]
                         extra = int.from_bytes(get_bits(extra_bits), byteorder='big')
-                        length = value + diff + extra
+                        length = diff + extra
                         backward_dist_code = get_next_length()
-                        extra_bits, diff = \
-                            (0, 1) if backward_dist_code < 4 else \
-                            (1, 1) if backward_dist_code < 6 else \
-                            (2, 3) if backward_dist_code < 8 else \
-                            (3, 9) if backward_dist_code < 10 else \
-                            (4, 23) if backward_dist_code < 12 else \
-                            (5, 53) if backward_dist_code < 14 else \
-                            (6, 115) if backward_dist_code < 16 else \
-                            (7, 241) if backward_dist_code < 18 else \
-                            (8, 495) if backward_dist_code < 20 else \
-                            (9, 1005) if backward_dist_code < 22 else \
-                            (10, 2027) if backward_dist_code < 24 else \
-                            (11, 4073) if backward_dist_code < 26 else \
-                            (12, 8167) if backward_dist_code < 28 else \
-                            (13, 16357)
+                        extra_bits, diff = distances_extra_bits_diffs[backward_dist_code]
                         extra_raw = get_bits(extra_bits)
                         extra = int.from_bytes(extra_raw, byteorder='big')
-                        backwards_dist = backward_dist_code + diff + extra
-                        yield via_cache(from_cache(backwards_dist, length))
+                        backwards_dist = diff + extra
+                        yield from via_cache(from_cache(backwards_dist, length))
             else:
                 raise UnsupportedBlockType(b_type)
 
