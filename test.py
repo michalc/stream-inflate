@@ -10,16 +10,9 @@ class TestStreamInflate(unittest.TestCase):
 
     def test_uncompressed_block(self):
         b_len_struct = Struct('<H')
-        data = b'Some uncompressed bytes'
-        stream = \
-            b'\0' + \
-            Struct('<H').pack(len(data)) + \
-            Struct('<H').pack(65535 - len(data)) + \
-            data + \
-            b'\1' + \
-            Struct('<H').pack(len(data)) + \
-            Struct('<H').pack(65535 - len(data)) + \
-            data
+        data = b'Some uncompressed bytes' * 2
+        compressobj = zlib.compressobj(level=0, wbits=-zlib.MAX_WBITS)
+        stream = compressobj.compress(data) + compressobj.flush()
 
         input_sizes = [1, 7, 65536]
         output_sizes = [1, 7, 65536]
@@ -29,12 +22,12 @@ class TestStreamInflate(unittest.TestCase):
                 yield stream[i:i + input_size]
 
         # Make sure it really is DEFLATEd
-        self.assertEqual(zlib.decompress(stream, wbits=-zlib.MAX_WBITS), data * 2)
+        self.assertEqual(zlib.decompress(stream, wbits=-zlib.MAX_WBITS), data)
 
         for input_size, output_size in itertools.product(input_sizes, output_sizes):
             with self.subTest(input_size=input_size, output_size=output_size):
                 uncompressed = b''.join(stream_inflate(content(input_size), chunk_size=output_size))
-                self.assertEqual(uncompressed, data * 2)
+                self.assertEqual(uncompressed, data)
 
     def test_zlib_compressed(self):
         b_len_struct = Struct('<H')
