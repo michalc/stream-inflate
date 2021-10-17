@@ -54,7 +54,7 @@ class TestStreamInflate(unittest.TestCase):
     def test_zlib_compressed_static(self):
         b_len_struct = Struct('<H')
 
-        data = b'Some uncompressed bytes'
+        data = b'Some uncompressed bytes' * 2
         compressobj = zlib.compressobj(wbits=-zlib.MAX_WBITS, strategy=zlib.Z_FIXED)
         stream = compressobj.compress(data) + compressobj.flush()
 

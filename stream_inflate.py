@@ -9,6 +9,8 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
         [9] * 112 + \
         [7] * 24 + \
         [8] * 8
+    fixed_distances = \
+        [5] * 32
 
     def get_readers(iterable):
         chunk = b''
@@ -66,6 +68,19 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
 
         return _get_bits, _get_bytes, _yield_bytes
 
+    def get_backwards_cache(size):
+        cache = b''
+
+        def via_cache(bs):
+            nonlocal cache
+            cache = (cache + bs)[:size]
+            return bs
+
+        def from_cache(backwards_dist, length):
+            return cache[-backwards_dist:- backwards_dist + length]
+
+        return via_cache, from_cache
+
     def get_huffman_decoder(get_bits, lengths):
 
         def yield_codes():
@@ -98,7 +113,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
 
         return get_next
 
-    def upcompressed(get_bits, get_bytes, yield_bytes):
+    def upcompressed(get_bits, get_bytes, yield_bytes, into_cache, from_cache):
         b_final = b'\0'
 
         while not b_final[0]:
@@ -110,16 +125,50 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 yield from yield_bytes(b_len)
             elif b_type == b'\1':
                 get_next = get_huffman_decoder(get_bits, fixed_lengths)
+                get_next_length = get_huffman_decoder(get_bits, fixed_distances)
                 while True:
                     value = get_next()
-                    if value == 256:
+                    if value < 256:
+                        yield via_cache(chr(value).encode())
+                    elif value == 256:
                         break
-                    yield chr(value).encode()
+                    else:
+                        extra_bits, diff = \
+                            (0, -254) if value < 265 else \
+                            (1, -254) if value < 269 else \
+                            (2, -250) if value < 273 else \
+                            (3, -238) if value < 277 else \
+                            (4, -210) if value < 281 else \
+                            (5, -150) if value < 285 else \
+                            (0, -27)
+                        extra = int.from_bytes(get_bits(extra_bits), byteorder='big')
+                        length = value + diff + extra
+                        backward_dist_code = get_next_length()
+                        extra_bits, diff = \
+                            (0, 1) if backward_dist_code < 4 else \
+                            (1, 1) if backward_dist_code < 6 else \
+                            (2, 3) if backward_dist_code < 8 else \
+                            (3, 9) if backward_dist_code < 10 else \
+                            (4, 23) if backward_dist_code < 12 else \
+                            (5, 53) if backward_dist_code < 14 else \
+                            (6, 115) if backward_dist_code < 16 else \
+                            (7, 241) if backward_dist_code < 18 else \
+                            (8, 495) if backward_dist_code < 20 else \
+                            (9, 1005) if backward_dist_code < 22 else \
+                            (10, 2027) if backward_dist_code < 24 else \
+                            (11, 4073) if backward_dist_code < 26 else \
+                            (12, 8167) if backward_dist_code < 28 else \
+                            (13, 16357)
+                        extra_raw = get_bits(extra_bits)
+                        extra = int.from_bytes(extra_raw, byteorder='big')
+                        backwards_dist = backward_dist_code + diff + extra
+                        yield via_cache(from_cache(backwards_dist, length))
             else:
                 raise UnsupportedBlockType(b_type)
 
     get_bits, get_bytes, yield_bytes = get_readers(deflate_chunks)
-    yield from upcompressed(get_bits, get_bytes, yield_bytes)
+    via_cache, from_cache = get_backwards_cache(32768)
+    yield from upcompressed(get_bits, get_bytes, yield_bytes, via_cache, from_cache)
 
 
 class TruncatedDataError(Exception):
