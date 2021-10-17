@@ -142,7 +142,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
 
         return get_next
 
-    def upcompressed(get_bits, get_bytes, yield_bytes, into_cache, from_cache):
+    def upcompressed(get_bits, get_bytes, yield_bytes, via_cache, from_cache):
         b_final = b'\0'
 
         while not b_final[0]:
