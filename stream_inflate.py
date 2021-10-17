@@ -153,16 +153,16 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 get_bytes(2)
                 yield from yield_bytes(b_len)
             elif b_type == b'\1':
-                get_next = get_huffman_decoder(get_bits, fixed_lengths)
+                get_literal_stop_or_length_code = get_huffman_decoder(get_bits, fixed_lengths)
                 get_backwards_dist_code = get_huffman_decoder(get_bits, fixed_distances)
                 while True:
-                    value = get_next()
-                    if value < 256:
-                        yield from via_cache((chr(value).encode(),))
-                    elif value == 256:
+                    literal_stop_or_length_code = get_literal_stop_or_length_code()
+                    if literal_stop_or_length_code < 256:
+                        yield from via_cache((chr(literal_stop_or_length_code).encode(),))
+                    elif literal_stop_or_length_code == 256:
                         break
                     else:
-                        extra_bits, diff = lengths_extra_bits_diffs[value - 257]
+                        extra_bits, diff = lengths_extra_bits_diffs[literal_stop_or_length_code - 257]
                         extra = int.from_bytes(get_bits(extra_bits), byteorder='big')
                         length = diff + extra
                         extra_bits, diff = distances_extra_bits_diffs[get_backwards_dist_code()]
