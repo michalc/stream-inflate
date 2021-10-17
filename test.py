@@ -8,7 +8,7 @@ from stream_inflate import UnsupportedBlockType, stream_inflate
 
 class TestStreamInflate(unittest.TestCase):
 
-    def test_uncompressed_block(self):
+    def test_uncompressed(self):
         b_len_struct = Struct('<H')
         data = b'Some uncompressed bytes' * 10000
         compressobj = zlib.compressobj(level=0, wbits=-zlib.MAX_WBITS)
