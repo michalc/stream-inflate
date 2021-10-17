@@ -110,7 +110,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
 
         return via_cache, from_cache
 
-    def get_huffman_decoder(get_bits, lengths):
+    def get_huffman_decoder(get_bits, lengths, alphabet):
 
         def yield_codes():
             max_bits = max(lengths)
@@ -122,7 +122,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                  code = (code + bl_count[bits - 1]) << 1;
                  next_code[bits] = code
 
-            for value, length in enumerate(lengths):
+            for value, length in zip(alphabet, lengths):
                 if length != 0:
                     yield (length, next_code[length]), value
                     next_code[length] += 1
@@ -153,8 +153,8 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 get_bytes(2)
                 yield from yield_bytes(b_len)
             elif b_type == b'\1':
-                get_literal_stop_or_length_code = get_huffman_decoder(get_bits, literal_stop_or_length_code_lengths)
-                get_backwards_dist_code = get_huffman_decoder(get_bits, dist_code_lengths)
+                get_literal_stop_or_length_code = get_huffman_decoder(get_bits, literal_stop_or_length_code_lengths, range(0, len(literal_stop_or_length_code_lengths)))
+                get_backwards_dist_code = get_huffman_decoder(get_bits, dist_code_lengths, range(0, len(dist_code_lengths)))
                 while True:
                     literal_stop_or_length_code = get_literal_stop_or_length_code()
                     if literal_stop_or_length_code < 256:
