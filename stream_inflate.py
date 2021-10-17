@@ -154,7 +154,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 yield from yield_bytes(b_len)
             elif b_type == b'\1':
                 get_next = get_huffman_decoder(get_bits, fixed_lengths)
-                get_next_length = get_huffman_decoder(get_bits, fixed_distances)
+                get_backwards_dist_code = get_huffman_decoder(get_bits, fixed_distances)
                 while True:
                     value = get_next()
                     if value < 256:
@@ -165,7 +165,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                         extra_bits, diff = lengths_extra_bits_diffs[value - 257]
                         extra = int.from_bytes(get_bits(extra_bits), byteorder='big')
                         length = diff + extra
-                        backward_dist_code = get_next_length()
+                        backward_dist_code = get_backwards_dist_code()
                         extra_bits, diff = distances_extra_bits_diffs[backward_dist_code]
                         extra_raw = get_bits(extra_bits)
                         extra = int.from_bytes(extra_raw, byteorder='big')
