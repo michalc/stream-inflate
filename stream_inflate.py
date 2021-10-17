@@ -66,11 +66,12 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
         while not b_final[0]:
             b_final = get_bits(1)
             b_type = get_bits(2)
-            if b_type != b'\0':
+            if b_type == b'\0':
+                b_len, = b_len_struct.unpack(get_bytes(2))
+                get_bytes(2)
+                yield from yield_bytes(b_len)
+            else:
                 raise UnsupportedBlockType(b_type)
-            b_len, = b_len_struct.unpack(get_bytes(2))
-            get_bytes(2)
-            yield from yield_bytes(b_len)
 
     get_bits, get_bytes, yield_bytes = get_readers(deflate_chunks)
     yield from upcompressed(get_bits, get_bytes, yield_bytes)
