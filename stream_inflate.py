@@ -5,12 +5,12 @@ from struct import Struct
 def stream_inflate(deflate_chunks, chunk_size=65536):
     b_len_struct = Struct('<H')
     fixed_lengths = \
-        [8] * 144 + \
-        [9] * 112 + \
-        [7] * 24 + \
-        [8] * 8
+        (8,) * 144 + \
+        (9,) * 112 + \
+        (7,) * 24 + \
+        (8,) * 8
     fixed_distances = \
-        [5] * 32
+        (5,) * 32
     lengths_extra_bits_diffs = (
         (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10),
         (1, 11), (1, 13), (1, 15), (1, 17),
