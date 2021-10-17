@@ -93,7 +93,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
         def via_cache(bytes_iter):
             nonlocal cache
             for chunk in bytes_iter:
-                cache = (cache + chunk)[:size]
+                cache = (cache + chunk)[-size:]
                 yield chunk
 
         def from_cache(backwards_dist, length):
