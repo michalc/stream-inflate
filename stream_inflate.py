@@ -1,8 +1,14 @@
+from collections import Counter, defaultdict
 from struct import Struct
 
 
 def stream_inflate(deflate_chunks, chunk_size=65536):
     b_len_struct = Struct('<H')
+    fixed_lengths = \
+        [8] * 144 + \
+        [9] * 112 + \
+        [7] * 24 + \
+        [8] * 8
 
     def get_readers(iterable):
         chunk = b''
@@ -31,7 +37,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                     chunk = _next_or_truncated_error()
                     offset_byte = 0
 
-                out[out_offset_bit // 8] |= chunk[offset_byte] & (2 ** offset_bit)
+                out[out_offset_bit // 8] |= (chunk[offset_byte] & (2 ** offset_bit)) >> offset_bit << (out_offset_bit % 8)
 
                 num_bits -= 1
                 offset_bit += 1
@@ -60,6 +66,38 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
 
         return _get_bits, _get_bytes, _yield_bytes
 
+    def get_huffman_decoder(get_bits, lengths):
+
+        def yield_codes():
+            max_bits = max(lengths)
+            bl_count = defaultdict(int, Counter(lengths))
+            next_code = {}
+            code = 0
+            bl_count[0] = 0
+            for bits in range(1, max_bits + 1):
+                 code = (code + bl_count[bits - 1]) << 1;
+                 next_code[bits] = code
+
+            for value, length in enumerate(lengths):
+                if length != 0:
+                    yield (length, next_code[length]), value
+                    next_code[length] += 1
+
+        def get_next():
+            length = 0
+            code = 0
+            while True:
+                length += 1
+                code = (code << 1) | ord(get_bits(1))
+                try:
+                    return codes[(length, code)]
+                except KeyError:
+                    continue
+
+        codes = dict(yield_codes())
+
+        return get_next
+
     def upcompressed(get_bits, get_bytes, yield_bytes):
         b_final = b'\0'
 
@@ -70,6 +108,13 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 b_len, = b_len_struct.unpack(get_bytes(2))
                 get_bytes(2)
                 yield from yield_bytes(b_len)
+            elif b_type == b'\1':
+                get_next = get_huffman_decoder(get_bits, fixed_lengths)
+                while True:
+                    value = get_next()
+                    if value == 256:
+                        break
+                    yield chr(value).encode()
             else:
                 raise UnsupportedBlockType(b_type)
 
