@@ -60,8 +60,6 @@ class TestStreamInflate(unittest.TestCase):
 
         input_sizes = [1, 7, 65536]
         output_sizes = [1, 7, 65536]
-        input_sizes = [65536]
-        output_sizes = [65536]
 
         def content(input_size):
             for i in range(0, len(stream), input_size):
