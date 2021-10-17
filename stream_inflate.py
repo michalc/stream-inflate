@@ -9,9 +9,9 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
         (9,) * 112 + \
         (7,) * 24 + \
         (8,) * 8
-    backwards_dist_code_lengths = \
+    dist_code_lengths = \
         (5,) * 32
-    lengths_extra_bits_diffs = (
+    length_extra_bits_diffs = (
         (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10),
         (1, 11), (1, 13), (1, 15), (1, 17),
         (2, 19), (2, 23), (2, 27), (2, 31),
@@ -20,7 +20,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
         (5, 131), (5, 163), (5, 195), (5, 227),
         (0, 258),
     )
-    distances_extra_bits_diffs = (
+    dist_extra_bits_diffs = (
         (0, 1), (0, 2), (0, 3), (0, 4),
         (1, 5), (1, 7), (2, 9), (2, 13),
         (3, 17), (3, 25), (4, 33), (4, 49),
@@ -154,7 +154,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 yield from yield_bytes(b_len)
             elif b_type == b'\1':
                 get_literal_stop_or_length_code = get_huffman_decoder(get_bits, literal_stop_or_length_code_lengths)
-                get_backwards_dist_code = get_huffman_decoder(get_bits, backwards_dist_code_lengths)
+                get_backwards_dist_code = get_huffman_decoder(get_bits, dist_code_lengths)
                 while True:
                     literal_stop_or_length_code = get_literal_stop_or_length_code()
                     if literal_stop_or_length_code < 256:
@@ -162,10 +162,10 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                     elif literal_stop_or_length_code == 256:
                         break
                     else:
-                        length_extra_bits, length_diff = lengths_extra_bits_diffs[literal_stop_or_length_code - 257]
+                        length_extra_bits, length_diff = length_extra_bits_diffs[literal_stop_or_length_code - 257]
                         length_extra = int.from_bytes(get_bits(length_extra_bits), byteorder='big')
 
-                        dist_extra_bits, dist_diff = distances_extra_bits_diffs[get_backwards_dist_code()]
+                        dist_extra_bits, dist_diff = dist_extra_bits_diffs[get_backwards_dist_code()]
                         dist_extra = int.from_bytes(get_bits(dist_extra_bits), byteorder='big')
 
                         yield from via_cache(from_cache(dist=dist_extra + dist_diff, length=length_extra + length_diff))
