@@ -4,12 +4,12 @@ from struct import Struct
 
 def stream_inflate(deflate_chunks, chunk_size=65536):
     b_len_struct = Struct('<H')
-    fixed_lengths = \
+    literal_stop_or_length_code_lengths = \
         (8,) * 144 + \
         (9,) * 112 + \
         (7,) * 24 + \
         (8,) * 8
-    fixed_distances = \
+    backwards_dist_code_lengths = \
         (5,) * 32
     lengths_extra_bits_diffs = (
         (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10),
@@ -153,8 +153,8 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 get_bytes(2)
                 yield from yield_bytes(b_len)
             elif b_type == b'\1':
-                get_literal_stop_or_length_code = get_huffman_decoder(get_bits, fixed_lengths)
-                get_backwards_dist_code = get_huffman_decoder(get_bits, fixed_distances)
+                get_literal_stop_or_length_code = get_huffman_decoder(get_bits, literal_stop_or_length_code_lengths)
+                get_backwards_dist_code = get_huffman_decoder(get_bits, backwards_dist_code_lengths)
                 while True:
                     literal_stop_or_length_code = get_literal_stop_or_length_code()
                     if literal_stop_or_length_code < 256:
