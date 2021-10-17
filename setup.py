@@ -7,14 +7,14 @@ def long_description():
 
 
 setuptools.setup(
-    name='stream-deflate',
+    name='stream-inflate',
     version='0.0.0',
     author='Michal Charemza',
     author_email='michal@charemza.name',
     description='Uncompress DEFLATE streams in pure Python',
     long_description=long_description(),
     long_description_content_type='text/markdown',
-    url='https://github.com/michalc/stream-deflate',
+    url='https://github.com/michalc/stream-infl',
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
@@ -22,6 +22,6 @@ setuptools.setup(
     ],
     python_requires='>=3.5.0',
     py_modules=[
-        'stream_deflate',
+        'stream_inflate',
     ],
 )

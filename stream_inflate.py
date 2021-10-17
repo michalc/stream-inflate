@@ -1,7 +1,7 @@
 from struct import Struct
 
 
-def stream_deflate(deflate_chunks, chunk_size=65536):
+def stream_inflate(deflate_chunks, chunk_size=65536):
     b_len_struct = Struct('<H')
 
     def get_readers(iterable):

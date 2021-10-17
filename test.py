@@ -3,10 +3,10 @@ import unittest
 import zlib
 from struct import Struct
 
-from stream_deflate import stream_deflate
+from stream_inflate import stream_inflate
 
 
-class TestStreamDeflate(unittest.TestCase):
+class TestStreamInflate(unittest.TestCase):
 
     def test_uncompressed_block(self):
         b_len_struct = Struct('<H')
@@ -33,5 +33,5 @@ class TestStreamDeflate(unittest.TestCase):
 
         for input_size, output_size in itertools.product(input_sizes, output_sizes):
             with self.subTest(input_size=input_size, output_size=output_size):
-                uncompressed = b''.join(stream_deflate(content(input_size), chunk_size=output_size))
+                uncompressed = b''.join(stream_inflate(content(input_size), chunk_size=output_size))
                 self.assertEqual(uncompressed, data * 2)
