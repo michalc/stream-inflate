@@ -14,7 +14,7 @@ class TestStreamInflate(unittest.TestCase):
 
         strategies = [zlib.Z_DEFAULT_STRATEGY, zlib.Z_FIXED]
         levels = [-1, 0, 9]
-        base_data_lens = [8, 80000]
+        base_data_lens = [8, 800, 80000]
         num_repeats = [0, 1, 2, 100]
         input_sizes = [1, 7, 65536]
         output_sizes = [1, 7, 65536]
