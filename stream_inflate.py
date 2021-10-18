@@ -3,7 +3,6 @@ from struct import Struct
 
 
 def stream_inflate(deflate_chunks, chunk_size=65536):
-    b_len_struct = Struct('<H')
     literal_stop_or_length_code_lengths = \
         (8,) * 144 + \
         (9,) * 112 + \
@@ -177,7 +176,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
             b_final = get_bits(1)
             b_type = get_bits(2)
             if b_type == b'\0':
-                b_len, = b_len_struct.unpack(get_bytes(2))
+                b_len = int.from_bytes(get_bytes(2), byteorder='little')
                 get_bytes(2)
                 yield from yield_bytes(b_len)
             elif b_type in (b'\1', b'\2'):
