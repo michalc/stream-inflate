@@ -1,3 +1,4 @@
+import random
 import itertools
 import unittest
 import zlib
@@ -9,14 +10,14 @@ from stream_inflate import UnsupportedBlockType, stream_inflate
 class TestStreamInflate(unittest.TestCase):
 
     def test_stream_inflate(self):
-        b_len_struct = Struct('<H')
-        base_data = b'Some uncompressed bytes'
+        rnd = random.Random()
 
         strategy_levels = [
             (zlib.Z_DEFAULT_STRATEGY, 0),
             (zlib.Z_FIXED, -1),
         ]
-        num_repeats = [0, 1, 3, 10000]
+        base_data_lens = [8, 80000]
+        num_repeats = [0, 1, 2, 100]
         input_sizes = [1, 7, 65536]
         output_sizes = [1, 7, 65536]
 
@@ -24,16 +25,19 @@ class TestStreamInflate(unittest.TestCase):
             for i in range(0, len(stream), input_size):
                 yield stream[i:i + input_size]
 
-        for (strategy, level), num_repeats, input_size, output_size in itertools.product(strategy_levels, num_repeats, input_sizes, output_sizes):
+        for (strategy, level), base_data_len, num_repeats, input_size, output_size in itertools.product(strategy_levels, base_data_lens, num_repeats, input_sizes, output_sizes):
             with \
                 self.subTest(
                         strategy=strategy,
                         level=level,
+                        base_data_len=base_data_len,
                         num_repeat=num_repeats,
                         input_size=input_size,
                         output_size=output_size,
                 ):
-                data = base_data * num_repeats
+
+                rnd.seed(1)
+                data = rnd.getrandbits(base_data_len).to_bytes(base_data_len//8, byteorder='big') * num_repeats
                 compressobj = zlib.compressobj(level=level, wbits=-zlib.MAX_WBITS, strategy=strategy)
                 stream = compressobj.compress(data) + compressobj.flush()
 

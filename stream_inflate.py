@@ -158,15 +158,15 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 while True:
                     literal_stop_or_length_code = get_literal_stop_or_length_code()
                     if literal_stop_or_length_code < 256:
-                        yield from via_cache((chr(literal_stop_or_length_code).encode(),))
+                        yield from via_cache((bytes((literal_stop_or_length_code,)),))
                     elif literal_stop_or_length_code == 256:
                         break
                     else:
                         length_extra_bits, length_diff = length_extra_bits_diffs[literal_stop_or_length_code - 257]
-                        length_extra = int.from_bytes(get_bits(length_extra_bits), byteorder='big')
+                        length_extra = int.from_bytes(get_bits(length_extra_bits), byteorder='little')
 
                         dist_extra_bits, dist_diff = dist_extra_bits_diffs[get_backwards_dist_code()]
-                        dist_extra = int.from_bytes(get_bits(dist_extra_bits), byteorder='big')
+                        dist_extra = int.from_bytes(get_bits(dist_extra_bits), byteorder='little')
 
                         yield from via_cache(from_cache(dist=dist_extra + dist_diff, length=length_extra + length_diff))
             else:
