@@ -30,6 +30,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
         (11, 4097), (11, 6145), (12, 8193), (12, 12289),
         (13, 16385), (13, 24577),
     )
+    code_lengths_alphabet = (16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15)
 
     def get_readers(iterable):
         chunk = b''
@@ -142,6 +143,33 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
 
         return get_next
 
+    def get_code_lengths(get_bits, get_code_length_code, num_codes):
+        i = 0
+        previous = 0
+        while i < num_codes:
+            code = get_code_length_code()
+            if code < 16:
+                previous = code
+                i += 1
+                yield code
+            elif code == 16:
+                repeat = 3 + ord(get_bits(2))
+                i += repeat
+                for _ in range(0, repeat):
+                    yield previous
+            elif code == 17:
+                repeat = 3 + ord(get_bits(3))
+                i += repeat
+                previous = 0
+                for _ in range(0, repeat):
+                    yield 0
+            elif code == 18:
+                repeat = 11 + ord(get_bits(7))
+                i += repeat
+                previous = 0
+                for _ in range(0, repeat):
+                    yield 0
+
     def upcompressed(get_bits, get_bytes, yield_bytes, via_cache, from_cache):
         b_final = b'\0'
 
@@ -152,9 +180,28 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 b_len, = b_len_struct.unpack(get_bytes(2))
                 get_bytes(2)
                 yield from yield_bytes(b_len)
-            elif b_type == b'\1':
-                get_literal_stop_or_length_code = get_huffman_decoder(get_bits, literal_stop_or_length_code_lengths, range(0, len(literal_stop_or_length_code_lengths)))
-                get_backwards_dist_code = get_huffman_decoder(get_bits, dist_code_lengths, range(0, len(dist_code_lengths)))
+            elif b_type in (b'\1', b'\2'):
+                if b_type == b'\1':
+                    get_literal_stop_or_length_code = get_huffman_decoder(get_bits, literal_stop_or_length_code_lengths, range(0, len(literal_stop_or_length_code_lengths)))
+                    get_backwards_dist_code = get_huffman_decoder(get_bits, dist_code_lengths, range(0, len(dist_code_lengths)))
+                else:
+                    num_literal_length_codes = ord(get_bits(5)) + 257
+                    num_dist_codes = ord(get_bits(5)) + 1
+                    num_length_codes = ord(get_bits(4)) + 4
+
+                    code_length_code_lengths = tuple(ord(get_bits(3)) for _ in range(0, num_length_codes)) + ((0,) * (19 - num_length_codes))
+                    code_length_code_lengths = tuple(
+                        v for i, v in
+                        sorted(enumerate(code_length_code_lengths), key=lambda x: code_lengths_alphabet[x[0]])
+                    )
+                    get_code_length_code = get_huffman_decoder(get_bits, code_length_code_lengths, range(0, 19))
+
+                    dynamic_literal_code_lengths = tuple(get_code_lengths(get_bits, get_code_length_code, num_literal_length_codes))
+                    dynamic_dist_code_lengths = tuple(get_code_lengths(get_bits, get_code_length_code, num_dist_codes))
+
+                    get_literal_stop_or_length_code = get_huffman_decoder(get_bits, dynamic_literal_code_lengths, range(0, len(dynamic_literal_code_lengths)))
+                    get_backwards_dist_code = get_huffman_decoder(get_bits, dynamic_dist_code_lengths, range(0, len(dynamic_dist_code_lengths)))
+
                 while True:
                     literal_stop_or_length_code = get_literal_stop_or_length_code()
                     if literal_stop_or_length_code < 256:
