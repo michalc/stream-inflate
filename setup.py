@@ -14,7 +14,7 @@ setuptools.setup(
     description='Uncompress DEFLATE streams in pure Python',
     long_description=long_description(),
     long_description_content_type='text/markdown',
-    url='https://github.com/michalc/stream-infl',
+    url='https://github.com/michalc/stream-inflate',
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
