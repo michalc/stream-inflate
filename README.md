@@ -2,8 +2,6 @@
 
 Uncompress DEFLATE streams in pure Python.
 
-> Work in progress. This README serves as a rough design spec.
-
 
 ## Installation
 
