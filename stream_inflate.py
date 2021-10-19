@@ -144,7 +144,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
 
     def get_code_lengths(get_bits, get_code_length_code, num_codes):
         i = 0
-        previous = 0
+        previous = None
         while i < num_codes:
             code = get_code_length_code()
             if code < 16:
@@ -200,8 +200,9 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 )
                 get_code_length_code = get_huffman_decoder(get_bits, code_length_code_lengths)
 
-                dynamic_literal_code_lengths = tuple(get_code_lengths(get_bits, get_code_length_code, num_literal_length_codes))
-                dynamic_dist_code_lengths = tuple(get_code_lengths(get_bits, get_code_length_code, num_dist_codes))
+                dynamic_code_lengths = tuple(get_code_lengths(get_bits, get_code_length_code, num_literal_length_codes + num_dist_codes))
+                dynamic_literal_code_lengths = dynamic_code_lengths[:num_literal_length_codes]
+                dynamic_dist_code_lengths = dynamic_code_lengths[num_literal_length_codes:]
 
                 get_literal_stop_or_length_code = get_huffman_decoder(get_bits, dynamic_literal_code_lengths)
                 get_backwards_dist_code = get_huffman_decoder(get_bits, dynamic_dist_code_lengths)
