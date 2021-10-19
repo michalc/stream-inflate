@@ -27,7 +27,7 @@ for uncompressed_chunk in stream_inflate(compressed_chunks()):
     print(uncompressed_chunk)
 ```
 
-To uncompress Deflate64, use the stream_inflate64 function.
+To uncompress Deflate64, use the `stream_inflate64` function.
 
 ```python
 from stream_inflate import stream_inflate64
