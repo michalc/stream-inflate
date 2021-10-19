@@ -175,48 +175,51 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
         while not b_final[0]:
             b_final = get_bits(1)
             b_type = get_bits(2)
+
+            if b_type == '\3':
+                raise UnsupportedBlockType(b_type)
+
             if b_type == b'\0':
                 b_len = int.from_bytes(get_bytes(2), byteorder='little')
                 get_bytes(2)
                 yield from yield_bytes(b_len)
-            elif b_type in (b'\1', b'\2'):
-                if b_type == b'\1':
-                    get_literal_stop_or_length_code = get_huffman_decoder(get_bits, literal_stop_or_length_code_lengths)
-                    get_backwards_dist_code = get_huffman_decoder(get_bits, dist_code_lengths)
-                else:
-                    num_literal_length_codes = ord(get_bits(5)) + 257
-                    num_dist_codes = ord(get_bits(5)) + 1
-                    num_length_codes = ord(get_bits(4)) + 4
+                continue
 
-                    code_length_code_lengths = tuple(ord(get_bits(3)) for _ in range(0, num_length_codes)) + ((0,) * (19 - num_length_codes))
-                    code_length_code_lengths = tuple(
-                        v for i, v in
-                        sorted(enumerate(code_length_code_lengths), key=lambda x: code_lengths_alphabet[x[0]])
-                    )
-                    get_code_length_code = get_huffman_decoder(get_bits, code_length_code_lengths)
-
-                    dynamic_literal_code_lengths = tuple(get_code_lengths(get_bits, get_code_length_code, num_literal_length_codes))
-                    dynamic_dist_code_lengths = tuple(get_code_lengths(get_bits, get_code_length_code, num_dist_codes))
-
-                    get_literal_stop_or_length_code = get_huffman_decoder(get_bits, dynamic_literal_code_lengths)
-                    get_backwards_dist_code = get_huffman_decoder(get_bits, dynamic_dist_code_lengths)
-
-                while True:
-                    literal_stop_or_length_code = get_literal_stop_or_length_code()
-                    if literal_stop_or_length_code < 256:
-                        yield from via_cache((bytes((literal_stop_or_length_code,)),))
-                    elif literal_stop_or_length_code == 256:
-                        break
-                    else:
-                        length_extra_bits, length_diff = length_extra_bits_diffs[literal_stop_or_length_code - 257]
-                        length_extra = int.from_bytes(get_bits(length_extra_bits), byteorder='little')
-
-                        dist_extra_bits, dist_diff = dist_extra_bits_diffs[get_backwards_dist_code()]
-                        dist_extra = int.from_bytes(get_bits(dist_extra_bits), byteorder='little')
-
-                        yield from via_cache(from_cache(dist=dist_extra + dist_diff, length=length_extra + length_diff))
+            if b_type == b'\1':
+                get_literal_stop_or_length_code = get_huffman_decoder(get_bits, literal_stop_or_length_code_lengths)
+                get_backwards_dist_code = get_huffman_decoder(get_bits, dist_code_lengths)
             else:
-                raise UnsupportedBlockType(b_type)
+                num_literal_length_codes = ord(get_bits(5)) + 257
+                num_dist_codes = ord(get_bits(5)) + 1
+                num_length_codes = ord(get_bits(4)) + 4
+
+                code_length_code_lengths = tuple(ord(get_bits(3)) for _ in range(0, num_length_codes)) + ((0,) * (19 - num_length_codes))
+                code_length_code_lengths = tuple(
+                    v for i, v in
+                    sorted(enumerate(code_length_code_lengths), key=lambda x: code_lengths_alphabet[x[0]])
+                )
+                get_code_length_code = get_huffman_decoder(get_bits, code_length_code_lengths)
+
+                dynamic_literal_code_lengths = tuple(get_code_lengths(get_bits, get_code_length_code, num_literal_length_codes))
+                dynamic_dist_code_lengths = tuple(get_code_lengths(get_bits, get_code_length_code, num_dist_codes))
+
+                get_literal_stop_or_length_code = get_huffman_decoder(get_bits, dynamic_literal_code_lengths)
+                get_backwards_dist_code = get_huffman_decoder(get_bits, dynamic_dist_code_lengths)
+
+            while True:
+                literal_stop_or_length_code = get_literal_stop_or_length_code()
+                if literal_stop_or_length_code < 256:
+                    yield from via_cache((bytes((literal_stop_or_length_code,)),))
+                elif literal_stop_or_length_code == 256:
+                    break
+                else:
+                    length_extra_bits, length_diff = length_extra_bits_diffs[literal_stop_or_length_code - 257]
+                    length_extra = int.from_bytes(get_bits(length_extra_bits), byteorder='little')
+
+                    dist_extra_bits, dist_diff = dist_extra_bits_diffs[get_backwards_dist_code()]
+                    dist_extra = int.from_bytes(get_bits(dist_extra_bits), byteorder='little')
+
+                    yield from via_cache(from_cache(dist=dist_extra + dist_diff, length=length_extra + length_diff))
 
     def paginate(bytes_iter, page_size):
         chunk = b''
