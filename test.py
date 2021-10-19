@@ -20,12 +20,14 @@ class TestStreamInflate(unittest.TestCase):
         output_sizes = [1, 7, 65536]
 
         last_index = 0
+        last_chunk = None
         def content(input_size):
-            nonlocal last_index
+            nonlocal last_index, last_chunk
 
             for i in range(0, len(stream), input_size):
                 last_index = i + input_size
-                yield stream[i:i + input_size]
+                last_chunk = stream[i:i + input_size]
+                yield last_chunk
 
         for strategy, level, base_data_len, num_repeats, input_size, output_size in itertools.product(strategies, levels, base_data_lens, num_repeats, input_sizes, output_sizes):
             with \
@@ -46,10 +48,10 @@ class TestStreamInflate(unittest.TestCase):
                 # Make sure it really is DEFLATEd
                 self.assertEqual(zlib.decompress(stream, wbits=-zlib.MAX_WBITS), data)
 
-                chunks, get_unconsumed = stream_inflate(content(input_size), chunk_size=output_size)
+                chunks, get_end_index = stream_inflate(content(input_size), chunk_size=output_size)
                 uncompressed = b''.join(chunks)
                 self.assertEqual(uncompressed, data)
-                self.assertEqual(get_unconsumed() + stream[last_index:], b'Unconsumed')
+                self.assertEqual(last_chunk[get_end_index():] + stream[last_index:], b'Unconsumed')
 
     def test_stream_inflate64(self):
         input_sizes = [1, 7, 65536]

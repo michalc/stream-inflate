@@ -34,14 +34,14 @@ for uncompressed_chunk in stream_inflate64(compressed_chunks())[0]:
     print(uncompressed_chunk)
 ```
 
-If you have a stream that has other data after the compressed part, but exactly where isn't known in advance, the following pattern can be used to retrieve it.
+If you have a stream that has other data after the compressed part, but exactly where isn't known in advance, the following pattern can be used to retrieve the index of the end of the compressed stream, relative to the last data chunk consumed.
 
 ```python
-uncompressed_chunks, get_unconsumed = stream_inflate(compressed_chunks())
+uncompressed_chunks, get_end_index = stream_inflate(compressed_chunks())
 for uncompressed_chunk in uncompressed_chunks:
     print(uncompressed_chunk)
 
-print(get_unconsumed())
+print(get_end_index())
 ```
 
 This is possible since Deflate and Deflate64-encoded streams indicate their end.
