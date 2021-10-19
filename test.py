@@ -13,14 +13,18 @@ class TestStreamInflate(unittest.TestCase):
         rnd = random.Random()
 
         strategies = [zlib.Z_DEFAULT_STRATEGY, zlib.Z_FIXED]
-        levels = [0]
-        base_data_lens = [262144]
-        num_repeats = [100]
-        input_sizes = [65536]
-        output_sizes = [65536]
+        levels = [-1, 0, 9]
+        base_data_lens = [8, 800, 80000]
+        num_repeats = [0, 1, 2, 100]
+        input_sizes = [1, 7, 65536]
+        output_sizes = [1, 7, 65536]
 
+        last_index = 0
         def content(input_size):
+            nonlocal last_index
+
             for i in range(0, len(stream), input_size):
+                last_index = i + input_size
                 yield stream[i:i + input_size]
 
         for strategy, level, base_data_len, num_repeats, input_size, output_size in itertools.product(strategies, levels, base_data_lens, num_repeats, input_sizes, output_sizes):
@@ -45,7 +49,7 @@ class TestStreamInflate(unittest.TestCase):
                 chunks, get_unconsumed = stream_inflate(content(input_size), chunk_size=output_size)
                 uncompressed = b''.join(chunks)
                 self.assertEqual(uncompressed, data)
-                self.assertEqual(get_unconsumed(), b'Unconsumed')
+                self.assertEqual(get_unconsumed() + stream[last_index:], b'Unconsumed')
 
     def test_stream_inflate64(self):
         input_sizes = [1, 7, 65536]
