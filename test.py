@@ -37,13 +37,15 @@ class TestStreamInflate(unittest.TestCase):
                 rnd.seed(1)
                 data = rnd.getrandbits(base_data_len).to_bytes(base_data_len//8, byteorder='big') * num_repeats
                 compressobj = zlib.compressobj(level=level, wbits=-zlib.MAX_WBITS, strategy=strategy)
-                stream = compressobj.compress(data) + compressobj.flush()
+                stream = compressobj.compress(data) + compressobj.flush() + b'Unconsumed'
 
                 # Make sure it really is DEFLATEd
                 self.assertEqual(zlib.decompress(stream, wbits=-zlib.MAX_WBITS), data)
 
-                uncompressed = b''.join(stream_inflate(content(input_size), chunk_size=output_size))
+                chunks, get_unconsumed = stream_inflate(content(input_size), chunk_size=output_size)
+                uncompressed = b''.join(chunks)
                 self.assertEqual(uncompressed, data)
+                self.assertEqual(get_unconsumed(), b'Unconsumed')
 
     def test_stream_inflate64(self):
         input_sizes = [1, 7, 65536]
@@ -68,5 +70,5 @@ class TestStreamInflate(unittest.TestCase):
                         output_size=output_size,
                 ):
 
-                uncompressed = b''.join(stream_inflate64(content(input_size), chunk_size=output_size))
+                uncompressed = b''.join(stream_inflate64(content(input_size), chunk_size=output_size)[0])
                 self.assertEqual(uncompressed, data)

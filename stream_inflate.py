@@ -113,7 +113,10 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         def _get_bytes(num_bytes):
             return b''.join(_yield_bytes(num_bytes))
 
-        return _get_bits, _get_bytes, _yield_bytes
+        def _get_unconsumed():
+            return chunk[offset_byte + (1 if offset_bit else 0):]
+
+        return _get_bits, _get_bytes, _yield_bytes, _get_unconsumed
 
     def get_backwards_cache(size):
         cache = b''
@@ -278,11 +281,11 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 break
             yield page
 
-    get_bits, get_bytes, yield_bytes = get_readers(deflate_chunks)
+    get_bits, get_bytes, yield_bytes, get_unconsumed = get_readers(deflate_chunks)
     via_cache, from_cache = get_backwards_cache(cache_size)
 
     uncompressed = upcompress(get_bits, get_bytes, yield_bytes, via_cache, from_cache)
-    yield from paginate(uncompressed, chunk_size)
+    return paginate(uncompressed, chunk_size), get_unconsumed
 
 class TruncatedDataError(Exception):
     pass
