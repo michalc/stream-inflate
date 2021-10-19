@@ -77,7 +77,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 if offset_byte == len(chunk):
                     chunk = _next_or_truncated_error()
                     offset_byte = 0
-                to_yield = min(num_bytes, len(chunk) - offset_byte, chunk_size)
+                to_yield = min(num_bytes, len(chunk) - offset_byte)
                 offset_byte += to_yield
                 num_bytes -= to_yield
                 yield chunk[offset_byte - to_yield:offset_byte]
@@ -169,7 +169,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
                 for _ in range(0, repeat):
                     yield 0
 
-    def upcompressed(get_bits, get_bytes, yield_bytes, via_cache, from_cache):
+    def upcompress(get_bits, get_bytes, yield_bytes, via_cache, from_cache):
         b_final = b'\0'
 
         while not b_final[0]:
@@ -218,10 +218,38 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
             else:
                 raise UnsupportedBlockType(b_type)
 
+    def paginate(bytes_iter, page_size):
+        chunk = b''
+        offset = 0
+        it = iter(bytes_iter)
+
+        def up_to_page_size(num):
+            nonlocal chunk, offset
+
+            while num:
+                if offset == len(chunk):
+                    try:
+                        chunk = next(it)
+                    except StopIteration:
+                        break
+                    else:
+                        offset = 0
+                to_yield = min(num, len(chunk) - offset)
+                offset = offset + to_yield
+                num -= to_yield
+                yield chunk[offset - to_yield:offset]
+
+        while True:
+            page = b''.join(up_to_page_size(page_size))
+            if not page:
+                break
+            yield page
+
     get_bits, get_bytes, yield_bytes = get_readers(deflate_chunks)
     via_cache, from_cache = get_backwards_cache(32768)
-    yield from upcompressed(get_bits, get_bytes, yield_bytes, via_cache, from_cache)
 
+    uncompressed = upcompress(get_bits, get_bytes, yield_bytes, via_cache, from_cache)
+    yield from paginate(uncompressed, chunk_size)
 
 class TruncatedDataError(Exception):
     pass
