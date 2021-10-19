@@ -182,7 +182,7 @@ def stream_inflate(deflate_chunks, chunk_size=65536):
             if b_type == b'\0':
                 b_len = int.from_bytes(get_bytes(2), byteorder='little')
                 get_bytes(2)
-                yield from yield_bytes(b_len)
+                yield from via_cache(yield_bytes(b_len))
                 continue
 
             if b_type == b'\1':
