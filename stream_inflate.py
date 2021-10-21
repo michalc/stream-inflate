@@ -119,21 +119,47 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         return _get_bits, _get_bytes, _yield_bytes, _get_end_index
 
     def get_backwards_cache(size):
-        cache = b''
+        cache = bytearray(size)
+        cache_start = 0
+        cache_len = 0
 
         def via_cache(bytes_iter):
-            nonlocal cache
+            nonlocal cache, cache_start, cache_len
+
             for chunk in bytes_iter:
-                cache = (cache + chunk)[-size:]
+                chunk_start = max(len(chunk) - size, 0)
+                chunk_end = len(chunk)
+                chunk_len = chunk_end - chunk_start
+                part_1_start = (cache_start + cache_len) % size
+                part_1_end = min(part_1_start + chunk_len, size)
+                part_1_chunk_start = chunk_start
+                part_1_chunk_end = chunk_start + (part_1_end - part_1_start)
+                part_2_start = 0
+                part_2_end = chunk_len - (part_1_end - part_1_start)
+                part_2_chunk_start = part_1_chunk_end
+                part_2_chunk_end = part_1_chunk_end + (part_2_end - part_2_start)
+
+                cache_len_over_size = max((cache_len + chunk_len) - size, 0)
+                cache_len = min(size, cache_len + chunk_len)
+                cache_start = (cache_start + cache_len_over_size) % size
+
+                cache[part_1_start:part_1_end] = chunk[part_1_chunk_start:part_1_chunk_end]
+                cache[part_2_start:part_2_end] = chunk[part_2_chunk_start:part_2_chunk_end]
+
                 yield chunk
 
         def from_cache(dist, length):
-            if dist > len(cache):
+            if dist > cache_len:
                 raise Exception('Searching backwards too far', dist, len(cache))
 
-            start = len(cache) - dist
-            end = max(start + length, len(cache))
-            chunk = cache[start:end]
+            available = dist
+            part_1_start = (cache_start + cache_len - dist) % size
+            part_1_end = min(part_1_start + available, size)
+            part_2_start = 0
+            part_2_end = max(available - (part_1_end - part_1_start), 0)
+
+            chunk = bytes(cache[part_1_start:part_1_end] + cache[part_2_start:part_2_end])
+
             while length:
                 to_yield = chunk[:length]
                 yield to_yield
