@@ -48,10 +48,10 @@ class TestStreamInflate(unittest.TestCase):
                 # Make sure it really is DEFLATEd
                 self.assertEqual(zlib.decompress(stream, wbits=-zlib.MAX_WBITS), data)
 
-                chunks, get_end_index = stream_inflate(content(input_size), chunk_size=output_size)
+                chunks, num_bytes_unconsumed = stream_inflate(content(input_size), chunk_size=output_size)
                 uncompressed = b''.join(chunks)
                 self.assertEqual(uncompressed, data)
-                self.assertEqual(last_chunk[get_end_index():] + stream[last_index:], b'Unconsumed')
+                self.assertEqual(last_chunk[len(last_chunk)-num_bytes_unconsumed():] + stream[last_index:], b'Unconsumed')
 
     def test_stream_inflate64(self):
         input_sizes = [1, 7, 65536]
