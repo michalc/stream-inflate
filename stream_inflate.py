@@ -183,8 +183,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
             for value, length in enumerate(lengths):
                 if length != 0:
-                    yield (length, next_code[length]), value
                     next_code[length] += 1
+                    yield (length, next_code[length] - 1), value
 
         def get_next():
             length = 0
