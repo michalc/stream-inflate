@@ -84,7 +84,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             while True:
                 if it is None:
                     try:
-                        it = iter_queue.get_nowait()
+                        it = iter(iter_queue.get_nowait())
                     except Empty:
                         raise StopIteration() from None
                     else:
