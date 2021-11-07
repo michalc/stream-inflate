@@ -4,7 +4,7 @@ import unittest
 import zlib
 from struct import Struct
 
-from stream_inflate import UnsupportedBlockType, stream_inflate, stream_inflate64
+from stream_inflate import stream_inflate, stream_inflate64
 
 
 class TestStreamInflate(unittest.TestCase):
@@ -17,19 +17,24 @@ class TestStreamInflate(unittest.TestCase):
         base_data_lens = [8, 800, 80000]
         num_repeats = [0, 1, 2, 100]
         input_sizes = [1, 7, 65536]
+        suspend_sizes = [1, 7, 65536]
         output_sizes = [1, 7, 65536]
 
-        last_index = 0
-        last_chunk = None
-        def content(input_size):
-            nonlocal last_index, last_chunk
+        total_attempted_consumed = 0
+
+        def content(stream, input_size):
+            nonlocal total_attempted_consumed
 
             for i in range(0, len(stream), input_size):
-                last_index = i + input_size
-                last_chunk = stream[i:i + input_size]
-                yield last_chunk
+                chunk = stream[i:i + input_size]
+                total_attempted_consumed += len(chunk)
+                yield chunk
 
-        for strategy, level, base_data_len, num_repeats, input_size, output_size in itertools.product(strategies, levels, base_data_lens, num_repeats, input_sizes, output_sizes):
+        def compressed_iters(stream, input_size, suspend_size):
+            for i in range(0, len(stream), suspend_size):
+                yield content(stream[i:i + suspend_size], input_size)
+
+        for strategy, level, base_data_len, num_repeats, input_size, suspend_size, output_size in itertools.product(strategies, levels, base_data_lens, num_repeats, input_sizes, suspend_sizes, output_sizes):
             with \
                 self.subTest(
                         strategy=strategy,
@@ -37,8 +42,10 @@ class TestStreamInflate(unittest.TestCase):
                         base_data_len=base_data_len,
                         num_repeat=num_repeats,
                         input_size=input_size,
+                        suspend_size=suspend_size,
                         output_size=output_size,
                 ):
+                print('.', end='', flush=True)
 
                 rnd.seed(1)
                 data = rnd.getrandbits(base_data_len).to_bytes(base_data_len//8, byteorder='big') * num_repeats
@@ -48,10 +55,16 @@ class TestStreamInflate(unittest.TestCase):
                 # Make sure it really is DEFLATEd
                 self.assertEqual(zlib.decompress(stream, wbits=-zlib.MAX_WBITS), data)
 
-                chunks, num_bytes_unconsumed = stream_inflate(content(input_size), chunk_size=output_size)
-                uncompressed = b''.join(chunks)
+                total_attempted_consumed = 0
+                uncompress, is_done, num_bytes_unconsumed = stream_inflate(chunk_size=output_size)
+                uncompressed = b''
+                iters = compressed_iters(stream, input_size, suspend_size)
+                while not is_done():
+                    uncompressed += b''.join(uncompress(next(iters)))
+
+
                 self.assertEqual(uncompressed, data)
-                self.assertEqual(last_chunk[len(last_chunk)-num_bytes_unconsumed():] + stream[last_index:], b'Unconsumed')
+                self.assertEqual(stream[total_attempted_consumed - num_bytes_unconsumed():], b'Unconsumed')
 
     def test_stream_inflate64(self):
         input_sizes = [1, 7, 65536]
@@ -75,6 +88,7 @@ class TestStreamInflate(unittest.TestCase):
                         input_size=input_size,
                         output_size=output_size,
                 ):
+                print('.', end='', flush=True)
 
-                uncompressed = b''.join(stream_inflate64(content(input_size), chunk_size=output_size)[0])
+                uncompressed = b''.join(stream_inflate64(chunk_size=output_size)[0](content(input_size)))
                 self.assertEqual(uncompressed, data)

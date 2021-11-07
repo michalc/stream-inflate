@@ -23,25 +23,29 @@ def compressed_chunks():
     with httpx.stream('GET', 'https://www.example.com/my.txt') as r:
         yield from r.iter_raw(chunk_size=65536)
 
-for uncompressed_chunk in stream_inflate(compressed_chunks())[0]:
+for uncompressed_chunk in stream_inflate()[0](compressed_chunks()):
     print(uncompressed_chunk)
 ```
 
 To uncompress Deflate64, use the `stream_inflate64` function.
 
 ```python
-for uncompressed_chunk in stream_inflate64(compressed_chunks())[0]:
+for uncompressed_chunk in stream_inflate64()[0](compressed_chunks()):
     print(uncompressed_chunk)
 ```
 
-The following pattern can be used to find how many bytes of the last data chunk have not been consumed by the decompression.
+For Deflate streams of unknown length where there may be other data _after_ the compressed part, the following pattern can be used to find how many bytes are not part of the compressed stream.
 
 ```python
-uncompressed_chunks, num_bytes_unconsumed = stream_inflate(compressed_chunks())
-for uncompressed_chunk in uncompressed_chunks:
-    print(uncompressed_chunk)
+uncompressed_chunks, is_done, num_bytes_unconsumed = stream_inflate()
+it = iter(compressed_chunks())
+
+while not is_done():
+    chunk = next(it)
+    for uncompressed in uncompressed_chunks((chunk,))
+        print(uncompressed)
 
 print(num_bytes_unconsumed())
 ```
 
-This useful when there may be other data after the compressed part, such as in ZIP files.
+This can be useful in certain ZIP files.
