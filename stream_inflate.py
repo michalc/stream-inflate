@@ -166,11 +166,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     # Bit/byte readers that are DeferredYielder
     def get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to):
 
-        def get_bit():
-            return DeferredYielder(can_proceed=reader_has_bit, to_yield=lambda: (), num_from_cache=lambda: (0, 0), return_value=reader_get_bit)
-
-        def get_byte():
-            return DeferredYielder(can_proceed=reader_has_byte, to_yield=lambda: (), num_from_cache=lambda: (0, 0), return_value=reader_get_byte)
+        get_bit = DeferredYielder(can_proceed=reader_has_bit, to_yield=lambda: (), num_from_cache=lambda: (0, 0), return_value=reader_get_bit)
+        get_byte = DeferredYielder(can_proceed=reader_has_byte, to_yield=lambda: (), num_from_cache=lambda: (0, 0), return_value=reader_get_byte)
 
         def yield_bytes_up_to(num):
             num_yielded = 0
@@ -189,7 +186,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             out_offset_bit = 0
 
             while num_bits:
-                bit = yield get_bit()
+                bit = yield get_bit
                 out[out_offset_bit // 8] |= bit << (out_offset_bit % 8)
 
                 num_bits -= 1
@@ -202,7 +199,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             out_offset = 0
 
             while out_offset != num_bytes:
-                out[out_offset] = yield get_byte()
+                out[out_offset] = yield get_byte
                 out_offset += 1
 
             return bytes(out)
