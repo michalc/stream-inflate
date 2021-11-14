@@ -409,9 +409,6 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
         return result
 
-    def yield_return(value):
-        return DeferredYielder(can_proceed=lambda: True, to_yield=lambda: (), num_from_cache=lambda: (0, 0), return_value=lambda: value)
-
     def yield_exactly(bytes_to_yield):
         return DeferredYielder(can_proceed=lambda: True, to_yield=lambda: (bytes_to_yield,), num_from_cache=lambda: (0, 0), return_value=lambda: None)
 
