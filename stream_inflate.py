@@ -373,7 +373,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         return tuple(result)
 
     def get_code_lengths(get_bits, get_code_length_code, num_codes):
-        result = []
+        result = [0] * num_codes
 
         i = 0
         previous = None
@@ -381,25 +381,21 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             code = yield from get_code_length_code()
             if code < 16:
                 previous = code
+                result[i] = code
                 i += 1
-                result.append(code)
             elif code == 16:
                 repeat = 3 + ord((yield from get_bits(2)))
-                i += repeat
                 for _ in range(0, repeat):
-                    result.append(previous)
+                    result[i] = previous
+                    i += 1
             elif code == 17:
                 repeat = 3 + ord((yield from get_bits(3)))
                 i += repeat
                 previous = 0
-                for _ in range(0, repeat):
-                    result.append(0)
             elif code == 18:
                 repeat = 11 + ord((yield from get_bits(7)))
                 i += repeat
                 previous = 0
-                for _ in range(0, repeat):
-                    result.append(0)
 
         return result
 
