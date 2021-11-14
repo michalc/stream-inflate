@@ -384,17 +384,14 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 result[i] = code
                 i += 1
             elif code == 16:
-                repeat = 3 + ord((yield from get_bits(2)))
-                for _ in range(0, repeat):
+                for _ in range(0, 3 + ord((yield from get_bits(2)))):
                     result[i] = previous
                     i += 1
             elif code == 17:
-                repeat = 3 + ord((yield from get_bits(3)))
-                i += repeat
+                i += 3 + ord((yield from get_bits(3)))
                 previous = 0
             elif code == 18:
-                repeat = 11 + ord((yield from get_bits(7)))
-                i += repeat
+                i += 11 + ord((yield from get_bits(7)))
                 previous = 0
 
         return result
