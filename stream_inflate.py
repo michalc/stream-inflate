@@ -334,7 +334,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
         return _run
 
-    def get_huffman_decoder(get_bits, lengths):
+    def get_huffman_codes(lengths):
 
         def yield_codes():
             max_bits = max(lengths)
@@ -351,20 +351,18 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                     next_code[length] += 1
                     yield (length, next_code[length] - 1), value
 
-        def get_next():
-            length = 0
-            code = 0
-            while True:
-                length += 1
-                code = (code << 1) | ord((yield from get_bits(1)))
-                try:
-                    return codes[(length, code)]
-                except KeyError:
-                    continue
+        return dict(yield_codes())
 
-        codes = dict(yield_codes())
-
-        return get_next
+    def get_huffman_value(get_bits, codes):
+        length = 0
+        code = 0
+        while True:
+            length += 1
+            code = (code << 1) | ord((yield from get_bits(1)))
+            try:
+                return codes[(length, code)]
+            except KeyError:
+                continue
 
     def get_code_length_code_lengths(num_length_codes, get_bits):
         result = [0] * num_length_codes
@@ -372,13 +370,13 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             result[i] = ord((yield from get_bits(3)))
         return tuple(result)
 
-    def get_code_lengths(get_bits, get_code_length_code, num_codes):
+    def get_code_lengths(get_bits, code_length_codes, num_codes):
         result = [0] * num_codes
 
         i = 0
         previous = None
         while i < num_codes:
-            code = yield from get_code_length_code()
+            code = yield from get_huffman_value(get_bits, code_length_codes)
             if code < 16:
                 previous = code
                 result[i] = code
@@ -419,8 +417,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 continue
 
             if b_type == b'\1':
-                get_literal_stop_or_length_code = get_huffman_decoder(get_bits, literal_stop_or_length_code_lengths)
-                get_backwards_dist_code = get_huffman_decoder(get_bits, dist_code_lengths)
+                literal_stop_or_length_codes = get_huffman_codes(literal_stop_or_length_code_lengths)
+                backwards_dist_codes = get_huffman_codes(dist_code_lengths)
             else:
                 num_literal_length_codes = ord((yield from get_bits(5))) + 257
                 num_dist_codes = ord((yield from get_bits(5))) + 1
@@ -431,17 +429,17 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                     v for i, v in
                     sorted(enumerate(code_length_code_lengths), key=lambda x: code_lengths_alphabet[x[0]])
                 )
-                get_code_length_code = get_huffman_decoder(get_bits, code_length_code_lengths)
+                code_length_codes = get_huffman_codes(code_length_code_lengths)
 
-                dynamic_code_lengths = yield from get_code_lengths(get_bits, get_code_length_code, num_literal_length_codes + num_dist_codes)
+                dynamic_code_lengths = yield from get_code_lengths(get_bits, code_length_codes, num_literal_length_codes + num_dist_codes)
                 dynamic_literal_code_lengths = dynamic_code_lengths[:num_literal_length_codes]
                 dynamic_dist_code_lengths = dynamic_code_lengths[num_literal_length_codes:]
 
-                get_literal_stop_or_length_code = get_huffman_decoder(get_bits, dynamic_literal_code_lengths)
-                get_backwards_dist_code = get_huffman_decoder(get_bits, dynamic_dist_code_lengths)
+                literal_stop_or_length_codes = get_huffman_codes(dynamic_literal_code_lengths)
+                backwards_dist_codes = get_huffman_codes(dynamic_dist_code_lengths)
 
             while True:
-                literal_stop_or_length_code = yield from get_literal_stop_or_length_code()
+                literal_stop_or_length_code = yield from get_huffman_value(get_bits, literal_stop_or_length_codes)
                 if literal_stop_or_length_code < 256:
                     yield yield_exactly(bytes((literal_stop_or_length_code,)))
                 elif literal_stop_or_length_code == 256:
@@ -450,7 +448,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                     length_extra_bits, length_diff = length_extra_bits_diffs[literal_stop_or_length_code - 257]
                     length_extra = int.from_bytes((yield from get_bits(length_extra_bits)), byteorder='little')
 
-                    code = yield from get_backwards_dist_code()
+                    code = yield from get_huffman_value(get_bits, backwards_dist_codes)
                     dist_extra_bits, dist_diff = dist_extra_bits_diffs[code]
                     dist_extra = int.from_bytes((yield from get_bits(dist_extra_bits)), byteorder='little')
 
