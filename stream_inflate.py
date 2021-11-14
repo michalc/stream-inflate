@@ -69,14 +69,12 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         'return_value',
     ))
 
-    # Low level bit/byte readers
-    def get_readers():
-        chunk = b''
-        offset_byte = 0
-        offset_bit = 0
-
+    def get_iterable_queue():
         iter_queue = Queue()
         it = None
+
+        def _append(iterable):
+            iter_queue.put_nowait(iterable)
 
         def _next():
             nonlocal it
@@ -95,8 +93,13 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 except StopIteration:
                     it = None
 
-        def _append(iterable):
-            iter_queue.put_nowait(iterable)
+        return _append, _next
+
+    # Low level bit/byte readers
+    def get_readers(it_next):
+        chunk = b''
+        offset_byte = 0
+        offset_bit = 0
 
         def _has_bit():
             nonlocal chunk, offset_byte, offset_bit
@@ -107,7 +110,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
             if offset_byte == len(chunk):
                 try:
-                    chunk = _next()
+                    chunk = it_next()
                 except StopIteration:
                     return False
                 else:
@@ -146,7 +149,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             while num:
                 if offset_byte == len(chunk):
                     try:
-                        chunk = _next()
+                        chunk = it_next()
                     except StopIteration:
                         return
                     offset_byte = 0
@@ -158,7 +161,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         def _num_bytes_unconsumed():
             return len(chunk) - offset_byte - (1 if offset_bit else 0)
 
-        return _append, _has_bit, _has_byte, _get_bit, _get_byte, _yield_bytes_up_to, _num_bytes_unconsumed
+        return _has_bit, _has_byte, _get_bit, _get_byte, _yield_bytes_up_to, _num_bytes_unconsumed
 
     # Bit/byte readers that are DeferredYielder
     def get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to):
@@ -469,9 +472,10 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
                     yield yield_from_cache(dist=dist_extra + dist_diff, length=length_extra + length_diff)
 
-    reader_append, reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to, reader_num_bytes_unconsumed = get_readers()
+    it_append, it_next = get_iterable_queue()
+    reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to, reader_num_bytes_unconsumed = get_readers(it_next)
     get_bits, get_bytes, yield_bytes = get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to)
     via_cache, from_cache = get_backwards_cache(cache_size)
-    run, is_done = get_runner(reader_append, via_cache, from_cache, inflate(get_bits, get_bytes, yield_bytes))
+    run, is_done = get_runner(it_append, via_cache, from_cache, inflate(get_bits, get_bytes, yield_bytes))
 
     return paginate(run, chunk_size), is_done, reader_num_bytes_unconsumed
