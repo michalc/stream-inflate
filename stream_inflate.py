@@ -169,18 +169,6 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         get_bit = DeferredYielder(can_proceed=reader_has_bit, to_yield=lambda: (), num_from_cache=lambda: (0, 0), return_value=reader_get_bit)
         get_byte = DeferredYielder(can_proceed=reader_has_byte, to_yield=lambda: (), num_from_cache=lambda: (0, 0), return_value=reader_get_byte)
 
-        def yield_bytes_up_to(num):
-            num_yielded = 0
-
-            def to_yield():
-                nonlocal num_yielded
-
-                for chunk in reader_yield_bytes_up_to(num):
-                    num_yielded += len(chunk)
-                    yield chunk
-
-            return DeferredYielder(can_proceed=reader_has_byte, to_yield=to_yield, num_from_cache=lambda: (0, 0), return_value=lambda: num_yielded)
-
         def get_bits(num_bits):
             out = bytearray(-(-num_bits // 8))
             out_offset_bit = 0
@@ -205,9 +193,18 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             return bytes(out)
 
         def yield_bytes(num_bytes):
+
+            def to_yield():
+                nonlocal num_bytes
+
+                for chunk in reader_yield_bytes_up_to(num_bytes):
+                    num_bytes -= len(chunk)
+                    yield chunk
+
+            yield_bytes_up_to = DeferredYielder(can_proceed=reader_has_byte, to_yield=to_yield, num_from_cache=lambda: (0, 0), return_value=lambda: None)
+
             while num_bytes:
-                num_yielded = yield yield_bytes_up_to(num_bytes)
-                num_bytes -= num_yielded
+                yield yield_bytes_up_to
 
         return get_bits, get_bytes, yield_bytes
 
