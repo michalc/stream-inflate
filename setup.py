@@ -8,7 +8,7 @@ def long_description():
 
 setuptools.setup(
     name='stream-inflate',
-    version='0.0.13',
+    version='0.0.14',
     author='Michal Charemza',
     author_email='michal@charemza.name',
     description='Uncompress DEFLATE streams in pure Python',
