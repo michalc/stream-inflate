@@ -271,23 +271,12 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
             append(new_iterable)
 
-            # First step uses `next` with no return value to pass in
-            if can_proceed is None:
-                try:
-                    can_proceed, to_yield, num_from_cache, return_value = next(alg)
-                except StopIteration:
-                    return
-            if not can_proceed():
-                return
-            yield from via_cache(to_yield())
-            yield from via_cache(from_cache(*num_from_cache()))
-            can_proceed = None
-
-            # Next step uses `send` passing in the return value of the previous step
             while True:
                 if can_proceed is None:
                     try:
-                        can_proceed, to_yield, num_from_cache, return_value = alg.send(return_value())
+                        can_proceed, to_yield, num_from_cache, return_value = \
+                            next(alg) if return_value is None else \
+                            alg.send(return_value())
                     except StopIteration:
                         break
                 if not can_proceed():
