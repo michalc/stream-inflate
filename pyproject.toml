@@ -10,11 +10,16 @@ authors = [
 ]
 description = "Uncompress DEFLATE streams in pure Python"
 readme = "README.md"
-requires-python = ">=3.5.0"
+requires-python = ">=3.6.7, !=3.7.0"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Topic :: System :: Archiving :: Compression",
+]
+
+[project.optional-dependencies]
+dev = [
+    "coverage",
 ]
 
 [project.urls]
