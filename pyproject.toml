@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "stream-inflate"
+version = "0.0.0.dev0"
+authors = [
+  { name="Michal Charemza", email="michal@charemza.name" },
+]
+description = "Uncompress DEFLATE streams in pure Python"
+readme = "README.md"
+requires-python = ">=3.5.0"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: System :: Archiving :: Compression",
+]
+
+[project.urls]
+"Source" = "https://github.com/michalc/stream-inflate"
+
+[tool.hatch.build]
+include = [
+  "stream_inflate.py",
+]
