@@ -1,4 +1,4 @@
-# stream-inflate [![CircleCI](https://circleci.com/gh/michalc/stream-inflate.svg?style=shield)](https://circleci.com/gh/michalc/stream-inflate) [![Test Coverage](https://api.codeclimate.com/v1/badges/1131e6ac6efb36647a9b/test_coverage)](https://codeclimate.com/github/michalc/stream-inflate/test_coverage)
+# stream-inflate [![PyPI package](https://img.shields.io/pypi/v/stream-inflate?label=PyPI%20package)](https://pypi.org/project/stream-inflate/) [![Test suite](https://img.shields.io/github/actions/workflow/status/michalc/stream-inflate/test.yml?label=Test%20suite)](https://github.com/michalc/stream-inflate/actions/workflows/test.yml) [![Code coverage](https://img.shields.io/codecov/c/github/michalc/stream-inflate?label=Code%20coverage)](https://app.codecov.io/gh/michalc/stream-inflate)
 
 Uncompress Deflate and Deflate64 streams in pure Python.
 
