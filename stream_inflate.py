@@ -276,13 +276,14 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             nonlocal is_done, can_proceed, to_yield, num_from_cache, return_value
 
             append(new_iterable)
+            send = alg.send
 
             while True:
                 if can_proceed is None:
                     try:
                         can_proceed, to_yield, num_from_cache, return_value = \
                             __next(alg) if return_value is None else \
-                            alg.send(return_value())
+                            send(return_value())
                     except StopIteration:
                         break
                 if not can_proceed():
