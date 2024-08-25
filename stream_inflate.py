@@ -68,6 +68,10 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         'return_value',
     ))
 
+    _len = len
+    _min = min
+    _max = max
+
     def get_true():
         return True
 
@@ -108,7 +112,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 offset_bit = 0
                 offset_byte += 1
 
-            if offset_byte == len(chunk):
+            if offset_byte == _len(chunk):
                 try:
                     chunk = it_next()
                 except StopIteration:
@@ -147,19 +151,19 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             offset_bit = 0
 
             while num:
-                if offset_byte == len(chunk):
+                if offset_byte == _len(chunk):
                     try:
                         chunk = it_next()
                     except StopIteration:
                         return
                     offset_byte = 0
-                to_yield = min(num, len(chunk) - offset_byte)
+                to_yield = _min(num, _len(chunk) - offset_byte)
                 offset_byte += to_yield
                 num -= to_yield
                 yield chunk[offset_byte - to_yield:offset_byte]
 
         def _num_bytes_unconsumed():
-            return len(chunk) - offset_byte - (1 if offset_bit else 0)
+            return _len(chunk) - offset_byte - (1 if offset_bit else 0)
 
         return _has_bit, _has_byte, _get_bit, _get_byte, _yield_bytes_up_to, _num_bytes_unconsumed
 
@@ -198,7 +202,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 nonlocal num_bytes
 
                 for chunk in reader_yield_bytes_up_to(num_bytes):
-                    num_bytes -= len(chunk)
+                    num_bytes -= _len(chunk)
                     yield chunk
 
             yield_bytes_up_to = DeferredYielder(can_proceed=reader_has_byte, to_yield=to_yield, num_from_cache=(0, 0), return_value=lambda: None)
@@ -217,11 +221,11 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             nonlocal cache, cache_start, cache_len
 
             for chunk in bytes_iter:
-                chunk_start = max(len(chunk) - size, 0)
-                chunk_end = len(chunk)
+                chunk_start = _max(_len(chunk) - size, 0)
+                chunk_end = _len(chunk)
                 chunk_len = chunk_end - chunk_start
                 part_1_start = (cache_start + cache_len) % size
-                part_1_end = min(part_1_start + chunk_len, size)
+                part_1_end = _min(part_1_start + chunk_len, size)
                 part_1_chunk_start = chunk_start
                 part_1_chunk_end = chunk_start + (part_1_end - part_1_start)
                 part_2_start = 0
@@ -229,8 +233,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 part_2_chunk_start = part_1_chunk_end
                 part_2_chunk_end = part_1_chunk_end + (part_2_end - part_2_start)
 
-                cache_len_over_size = max((cache_len + chunk_len) - size, 0)
-                cache_len = min(size, cache_len + chunk_len)
+                cache_len_over_size = _max((cache_len + chunk_len) - size, 0)
+                cache_len = _min(size, cache_len + chunk_len)
                 cache_start = (cache_start + cache_len_over_size) % size
 
                 cache[part_1_start:part_1_end] = chunk[part_1_chunk_start:part_1_chunk_end]
@@ -239,22 +243,22 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
         def from_cache(dist, length):
             if dist > cache_len:
-                raise Exception('Searching backwards too far', dist, len(cache))
+                raise Exception('Searching backwards too far', dist, _len(cache))
 
             available = dist
             part_1_start = (cache_start + cache_len - dist) % size
-            part_1_end = min(part_1_start + available, size)
+            part_1_end = _min(part_1_start + available, size)
             part_2_start = 0
-            part_2_end = max(available - (part_1_end - part_1_start), 0)
+            part_2_end = _max(available - (part_1_end - part_1_start), 0)
 
             while length:
 
                 to_yield = cache[part_1_start:part_1_end][:length]
-                length -= len(to_yield)
+                length -= _len(to_yield)
                 yield to_yield
 
                 to_yield = cache[part_2_start:part_2_end][:length]
-                length -= len(to_yield)
+                length -= _len(to_yield)
                 yield to_yield
 
         return via_cache, from_cache
@@ -300,14 +304,14 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 nonlocal chunk, offset
 
                 while num:
-                    if offset == len(chunk):
+                    if offset == _len(chunk):
                         try:
                             chunk = next(it)
                         except StopIteration:
                             break
                         else:
                             offset = 0
-                    to_yield = min(num, len(chunk) - offset)
+                    to_yield = _min(num, _len(chunk) - offset)
                     offset = offset + to_yield
                     num -= to_yield
                     yield chunk[offset - to_yield:offset]
@@ -326,7 +330,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     def get_huffman_codes(lengths):
 
         def yield_codes():
-            max_bits = max(lengths)
+            max_bits = _max(lengths)
             bl_count = defaultdict(int, Counter(lengths))
             next_code = {}
             code = 0
