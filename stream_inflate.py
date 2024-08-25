@@ -71,6 +71,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     _len = len
     _min = min
     _max = max
+    _int_from_bytes = int.from_bytes
 
     def get_true():
         return True
@@ -404,7 +405,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 raise UnsupportedBlockType(b_type)
 
             if b_type == b'\0':
-                b_len = int.from_bytes((yield from get_bytes(2)), byteorder='little')
+                b_len = _int_from_bytes((yield from get_bytes(2)), byteorder='little')
                 yield from get_bytes(2)
                 yield from yield_bytes(b_len)
                 continue
@@ -439,11 +440,11 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                     break
                 else:
                     length_extra_bits, length_diff = length_extra_bits_diffs[literal_stop_or_length_code - 257]
-                    length_extra = int.from_bytes((yield from get_bits(length_extra_bits)), byteorder='little')
+                    length_extra = _int_from_bytes((yield from get_bits(length_extra_bits)), byteorder='little')
 
                     code = yield from get_huffman_value(get_bits, backwards_dist_codes)
                     dist_extra_bits, dist_diff = dist_extra_bits_diffs[code]
-                    dist_extra = int.from_bytes((yield from get_bits(dist_extra_bits)), byteorder='little')
+                    dist_extra = _int_from_bytes((yield from get_bits(dist_extra_bits)), byteorder='little')
 
                     yield yield_from_cache(dist=dist_extra + dist_diff, length=length_extra + length_diff)
 
