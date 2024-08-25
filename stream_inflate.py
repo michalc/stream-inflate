@@ -214,7 +214,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         return get_bits, get_bytes, yield_bytes
 
     def get_backwards_cache(size):
-        cache = bytearray(size)
+        cache = memoryview(bytearray(size))
         cache_start = 0
         cache_len = 0
 
