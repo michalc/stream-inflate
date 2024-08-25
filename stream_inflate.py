@@ -68,6 +68,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         'return_value',
     ))
 
+    __next = next
     _len = len
     _min = min
     _max = max
@@ -94,7 +95,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                         raise StopIteration() from None
 
                 try:
-                    return next(it)
+                    return __next(it)
                 except StopIteration:
                     it = None
 
@@ -280,7 +281,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 if can_proceed is None:
                     try:
                         can_proceed, to_yield, num_from_cache, return_value = \
-                            next(alg) if return_value is None else \
+                            __next(alg) if return_value is None else \
                             alg.send(return_value())
                     except StopIteration:
                         break
@@ -307,7 +308,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 while num:
                     if offset == _len(chunk):
                         try:
-                            chunk = next(it)
+                            chunk = __next(it)
                         except StopIteration:
                             break
                         else:
