@@ -231,17 +231,19 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 part_1_end = _min(part_1_start + chunk_len, size)
                 part_1_chunk_start = chunk_start
                 part_1_chunk_end = chunk_start + (part_1_end - part_1_start)
-                part_2_start = 0
-                part_2_end = chunk_len - (part_1_end - part_1_start)
-                part_2_chunk_start = part_1_chunk_end
-                part_2_chunk_end = part_1_chunk_end + (part_2_end - part_2_start)
+                cache[part_1_start:part_1_end] = chunk[part_1_chunk_start:part_1_chunk_end]
+
+                if part_1_chunk_end != chunk_end:
+                    part_2_start = 0
+                    part_2_end = chunk_len - (part_1_end - part_1_start)
+                    part_2_chunk_start = part_1_chunk_end
+                    part_2_chunk_end = part_1_chunk_end + (part_2_end - part_2_start)
+                    cache[part_2_start:part_2_end] = chunk[part_2_chunk_start:part_2_chunk_end]
 
                 cache_len_over_size = _max((cache_len + chunk_len) - size, 0)
                 cache_len = _min(size, cache_len + chunk_len)
                 cache_start = (cache_start + cache_len_over_size) % size
 
-                cache[part_1_start:part_1_end] = chunk[part_1_chunk_start:part_1_chunk_end]
-                cache[part_2_start:part_2_end] = chunk[part_2_chunk_start:part_2_chunk_end]
                 yield chunk
 
         def from_cache(dist, length):
