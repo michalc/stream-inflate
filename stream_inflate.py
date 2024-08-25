@@ -244,6 +244,9 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 yield chunk
 
         def from_cache(dist, length):
+            if dist == 0:
+                return
+
             if dist > cache_len:
                 raise Exception('Searching backwards too far', dist, _len(cache))
 
@@ -288,8 +291,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 if not can_proceed():
                     return
                 yield from via_cache(to_yield())
-                if from_cache_length:
-                    yield from via_cache(from_cache(from_cache_dist, from_cache_length))
+                yield from via_cache(from_cache(from_cache_dist, from_cache_length))
                 can_proceed = None
 
             is_done = True
