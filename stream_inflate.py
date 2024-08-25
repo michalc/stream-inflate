@@ -223,8 +223,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             nonlocal cache, cache_start, cache_len
 
             for chunk in bytes_iter:
-                chunk_start = _max(_len(chunk) - size, 0)
                 chunk_end = _len(chunk)
+                chunk_start = _max(chunk_end - size, 0)
                 chunk_len = chunk_end - chunk_start
                 part_1_start = (cache_start + cache_len) % size
                 part_1_end = _min(part_1_start + chunk_len, size)
