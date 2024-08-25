@@ -267,13 +267,13 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
     def get_runner(append, via_cache, from_cache, alg):
         is_done = False
-        can_proceed, to_yield, num_from_cache, return_value = None, None, None, None
+        can_proceed, to_yield, from_cache_dist, from_cache_length, return_value = None, None, None, None, None
 
         def _is_done():
             return is_done
 
         def _run(new_iterable):
-            nonlocal is_done, can_proceed, to_yield, num_from_cache, return_value
+            nonlocal is_done, can_proceed, to_yield, from_cache_dist, from_cache_length, return_value
 
             append(new_iterable)
             send = alg.send
@@ -281,7 +281,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             while True:
                 if can_proceed is None:
                     try:
-                        can_proceed, to_yield, num_from_cache, return_value = \
+                        can_proceed, to_yield, (from_cache_dist, from_cache_length), return_value = \
                             __next(alg) if return_value is None else \
                             send(return_value())
                     except StopIteration:
@@ -289,7 +289,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 if not can_proceed():
                     return
                 yield from via_cache(to_yield())
-                yield from via_cache(from_cache(*num_from_cache))
+                yield from via_cache(from_cache(from_cache_dist, from_cache_length))
                 can_proceed = None
 
             is_done = True
