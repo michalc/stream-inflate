@@ -1,5 +1,4 @@
 from collections import Counter, defaultdict, namedtuple
-from queue import Empty, Queue
 
 
 def stream_inflate(chunk_size=65536):
@@ -70,23 +69,22 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     ))
 
     def get_iterable_queue():
-        iter_queue = Queue()
+        next_it = None
         it = None
 
         def _append(iterable):
-            iter_queue.put_nowait(iterable)
+            nonlocal next_it
+            next_it = iterable
 
         def _next():
-            nonlocal it
+            nonlocal next_it, it
 
             while True:
                 if it is None:
-                    try:
-                        it = iter(iter_queue.get_nowait())
-                    except Empty:
+                    if next_it is None:
                         raise StopIteration() from None
-                    else:
-                        iter_queue.task_done()
+                    it = iter(next_it)
+                    next_it = None
 
                 try:
                     return next(it)
