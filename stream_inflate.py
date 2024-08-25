@@ -247,11 +247,10 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             if dist > cache_len:
                 raise Exception('Searching backwards too far', dist, _len(cache))
 
-            available = dist
             part_1_start = (cache_start + cache_len - dist) % size
-            part_1_end = _min(part_1_start + available, size)
+            part_1_end = _min(part_1_start + dist, size)
             part_2_start = 0
-            part_2_end = _max(available - (part_1_end - part_1_start), 0)
+            part_2_end = _max(dist - (part_1_end - part_1_start), 0)
 
             while length:
 
@@ -289,7 +288,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 if not can_proceed():
                     return
                 yield from via_cache(to_yield())
-                yield from via_cache(from_cache(from_cache_dist, from_cache_length))
+                if from_cache_length:
+                    yield from via_cache(from_cache(from_cache_dist, from_cache_length))
                 can_proceed = None
 
             is_done = True
