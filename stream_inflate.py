@@ -264,7 +264,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
     def get_runner(append, via_cache, from_cache, alg):
         is_done = False
-        can_proceed, to_yield, num_from_cache, return_value  = None, None, None, None
+        can_proceed, to_yield, num_from_cache, return_value = None, None, None, None
 
         def _is_done():
             return is_done
