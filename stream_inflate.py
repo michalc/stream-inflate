@@ -236,6 +236,9 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 yield chunk
 
         def from_cache(dist, length):
+            if length == 0:
+                return
+
             if dist > cache_len:
                 raise Exception('Searching backwards too far', dist, len(cache))
 
