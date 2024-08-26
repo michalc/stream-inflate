@@ -114,7 +114,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
             if offset_byte == len(chunk):
                 try:
-                    chunk = it_next()
+                    chunk = memoryview(it_next())
                 except StopIteration:
                     return False
                 else:
@@ -153,7 +153,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             while num:
                 if offset_byte == len(chunk):
                     try:
-                        chunk = it_next()
+                        chunk = memoryview(it_next())
                     except StopIteration:
                         return
                     offset_byte = 0
@@ -237,8 +237,11 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 cache_len = min(size, cache_len + chunk_len)
                 cache_start = (cache_start + cache_len_over_size) % size
 
-                cache[part_1_start:part_1_end] = chunk[part_1_chunk_start:part_1_chunk_end]
-                cache[part_2_start:part_2_end] = chunk[part_2_chunk_start:part_2_chunk_end]
+                if part_1_chunk_end - part_1_chunk_start:
+                    cache[part_1_start:part_1_end] = chunk[part_1_chunk_start:part_1_chunk_end]
+
+                if part_2_chunk_end - part_2_chunk_start:
+                    cache[part_2_start:part_2_end] = chunk[part_2_chunk_start:part_2_chunk_end]
                 yield chunk
 
         def from_cache(dist, length):
