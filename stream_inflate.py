@@ -258,11 +258,13 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
                 to_yield = cache[part_1_start:part_1_end][:length]
                 length -= len(to_yield)
-                yield to_yield
+                if to_yield:
+                    yield to_yield
 
                 to_yield = cache[part_2_start:part_2_end][:length]
                 length -= len(to_yield)
-                yield to_yield
+                if to_yield:
+                    yield to_yield
 
         return via_cache, from_cache
 
