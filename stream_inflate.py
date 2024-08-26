@@ -216,15 +216,16 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         cache = bytearray(size)
         cache_end = 0
         cache_len = 0
+        _len = len
 
         def via_cache(bytes_iter):
             nonlocal cache, cache_end, cache_len
 
             for chunk in bytes_iter:
-                chunk_len = len(chunk)
-                cacheable_chunk_len = min(size, chunk_len)
+                chunk_len = _len(chunk)
+                cacheable_chunk_len = chunk_len if chunk_len < size else size
                 chunk_start = chunk_len - cacheable_chunk_len
-                part_1_len = min(cacheable_chunk_len, size - cache_end)
+                part_1_len = (size - cache_end) if (size - cache_end) < cacheable_chunk_len else cacheable_chunk_len
                 part_2_len = cacheable_chunk_len - part_1_len
 
                 if part_1_len:
@@ -235,28 +236,28 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                     cache[cache_end:cache_end + part_2_len] = chunk[chunk_start + part_1_len:chunk_start + part_1_len + part_2_len]
                     cache_end = (cache_end + part_2_len) % size
 
-                cache_len = min(cache_len + cacheable_chunk_len, size)
+                cache_len = (cache_len + cacheable_chunk_len) if (cache_len + cacheable_chunk_len) < size else size
 
                 yield chunk
 
         def from_cache(dist, length):
             if dist > cache_len:
-                raise Exception('Searching backwards too far', dist, len(cache))
+                raise Exception('Searching backwards too far', dist, _len(cache))
 
             part_1_start = (cache_end - dist) % size
-            part_1_end = min(part_1_start + dist, size)
+            part_1_end = (part_1_start + dist) if (part_1_start + dist) < size else size
             part_2_start = 0
-            part_2_end = max(dist - (part_1_end - part_1_start), 0)
+            part_2_end = (dist - (part_1_end - part_1_start)) if (dist - (part_1_end - part_1_start)) > 0 else 0
 
             while length:
 
                 to_yield = cache[part_1_start:part_1_end][:length]
-                length -= len(to_yield)
+                length -= _len(to_yield)
                 if to_yield:
                     yield to_yield
 
                 to_yield = cache[part_2_start:part_2_end][:length]
-                length -= len(to_yield)
+                length -= _len(to_yield)
                 if to_yield:
                     yield to_yield
 
