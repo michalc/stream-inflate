@@ -214,45 +214,39 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
     def get_backwards_cache(size):
         cache = bytearray(size)
-        cache_start = 0
+        cache_end = 0
         cache_len = 0
 
         def via_cache(bytes_iter):
-            nonlocal cache, cache_start, cache_len
+            nonlocal cache, cache_end, cache_len
 
             for chunk in bytes_iter:
-                chunk_start = max(len(chunk) - size, 0)
-                chunk_end = len(chunk)
-                chunk_len = chunk_end - chunk_start
-                part_1_start = (cache_start + cache_len) % size
-                part_1_end = min(part_1_start + chunk_len, size)
-                part_1_chunk_start = chunk_start
-                part_1_chunk_end = chunk_start + (part_1_end - part_1_start)
-                part_2_start = 0
-                part_2_end = chunk_len - (part_1_end - part_1_start)
-                part_2_chunk_start = part_1_chunk_end
-                part_2_chunk_end = part_1_chunk_end + (part_2_end - part_2_start)
+                chunk_len = len(chunk)
+                cacheable_chunk_len = min(size, chunk_len)
+                chunk_start = chunk_len - cacheable_chunk_len
+                part_1_len = min(cacheable_chunk_len, size - cache_end)
+                part_2_len = cacheable_chunk_len - part_1_len
 
-                cache_len_over_size = max((cache_len + chunk_len) - size, 0)
-                cache_len = min(size, cache_len + chunk_len)
-                cache_start = (cache_start + cache_len_over_size) % size
+                if part_1_len:
+                    cache[cache_end:cache_end + part_1_len] = chunk[chunk_start:chunk_start + part_1_len]
+                    cache_end = (cache_end + part_1_len) % size
 
-                if part_1_chunk_end - part_1_chunk_start:
-                    cache[part_1_start:part_1_end] = chunk[part_1_chunk_start:part_1_chunk_end]
+                if part_2_len:
+                    cache[cache_end:cache_end + part_2_len] = chunk[chunk_start + part_1_len:chunk_start + part_1_len + part_2_len]
+                    cache_end = (cache_end + part_2_len) % size
 
-                if part_2_chunk_end - part_2_chunk_start:
-                    cache[part_2_start:part_2_end] = chunk[part_2_chunk_start:part_2_chunk_end]
+                cache_len = min(cache_len + cacheable_chunk_len, size)
+
                 yield chunk
 
         def from_cache(dist, length):
             if dist > cache_len:
                 raise Exception('Searching backwards too far', dist, len(cache))
 
-            available = dist
-            part_1_start = (cache_start + cache_len - dist) % size
-            part_1_end = min(part_1_start + available, size)
+            part_1_start = (cache_end - dist) % size
+            part_1_end = min(part_1_start + dist, size)
             part_2_start = 0
-            part_2_end = max(available - (part_1_end - part_1_start), 0)
+            part_2_end = max(dist - (part_1_end - part_1_start), 0)
 
             while length:
 
