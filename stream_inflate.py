@@ -64,7 +64,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     DeferredYielder = namedtuple('DeferredYielder', (
         'can_proceed',
         'to_yield',
-        'num_from_cache',
+        'cache_dist',
+        'cache_length',
         'return_value',
     ))
 
@@ -164,8 +165,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     # Bit/byte readers that are DeferredYielder
     def get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to):
 
-        get_bit = DeferredYielder(can_proceed=reader_has_bit, to_yield=lambda: (), num_from_cache=(0, 0), return_value=reader_get_bit)
-        get_byte = DeferredYielder(can_proceed=reader_has_byte, to_yield=lambda: (), num_from_cache=(0, 0), return_value=reader_get_byte)
+        get_bit = DeferredYielder(can_proceed=reader_has_bit, to_yield=lambda: (), cache_dist=0, cache_length=0, return_value=reader_get_bit)
+        get_byte = DeferredYielder(can_proceed=reader_has_byte, to_yield=lambda: (), cache_dist=0, cache_length=0, return_value=reader_get_byte)
 
         def get_bits(num_bits):
             out = bytearray(-(-num_bits // 8))
@@ -199,7 +200,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                     num_bytes -= len(chunk)
                     yield chunk
 
-            yield_bytes_up_to = DeferredYielder(can_proceed=reader_has_byte, to_yield=to_yield, num_from_cache=(0, 0), return_value=lambda: None)
+            yield_bytes_up_to = DeferredYielder(can_proceed=reader_has_byte, to_yield=to_yield, cache_dist=0, cache_length=0, return_value=lambda: None)
 
             while num_bytes:
                 yield yield_bytes_up_to
@@ -259,20 +260,20 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
     def get_runner(append, via_cache, from_cache, alg):
         is_done = False
-        can_proceed, to_yield, num_from_cache, return_value  = None, None, None, None
+        can_proceed, to_yield, cache_dist, cache_length, return_value = None, None, None, None, None
 
         def _is_done():
             return is_done
 
         def _run(new_iterable):
-            nonlocal is_done, can_proceed, to_yield, num_from_cache, return_value
+            nonlocal is_done, can_proceed, to_yield, cache_dist, cache_length, return_value
 
             append(new_iterable)
 
             while True:
                 if can_proceed is None:
                     try:
-                        can_proceed, to_yield, num_from_cache, return_value = \
+                        can_proceed, to_yield, cache_dist, cache_length, return_value = \
                             next(alg) if return_value is None else \
                             alg.send(return_value())
                     except StopIteration:
@@ -284,8 +285,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 to_y = to_yield()
                 if to_y:
                     yield from via_cache(to_y)
-                if num_from_cache[1]:
-                    yield from via_cache(from_cache(num_from_cache[0], num_from_cache[1]))
+                if cache_length:
+                    yield from via_cache(from_cache(cache_dist, cache_length))
                 can_proceed = None
 
             is_done = True
@@ -387,10 +388,10 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         return result
 
     def yield_exactly(bytes_to_yield):
-        return DeferredYielder(can_proceed=lambda: True, to_yield=lambda: (bytes_to_yield,), num_from_cache=(0, 0), return_value=lambda: None)
+        return DeferredYielder(can_proceed=lambda: True, to_yield=lambda: (bytes_to_yield,), cache_dist=0, cache_length=0, return_value=lambda: None)
 
     def yield_from_cache(dist, length):
-        return DeferredYielder(can_proceed=lambda: True, to_yield=lambda: (), num_from_cache=(dist, length), return_value=lambda: None)
+        return DeferredYielder(can_proceed=lambda: True, to_yield=lambda: (), cache_dist=dist, cache_length=length, return_value=lambda: None)
 
     def inflate(get_bits, get_bytes, yield_bytes):
         b_final = b'\0'
