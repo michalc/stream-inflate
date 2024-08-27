@@ -228,9 +228,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 part_1_len = (size - cache_end) if (size - cache_end) < cacheable_chunk_len else cacheable_chunk_len
                 part_2_len = cacheable_chunk_len - part_1_len
 
-                if part_1_len:
-                    cache[cache_end:cache_end + part_1_len] = chunk[chunk_start:chunk_start + part_1_len]
-                    cache_end = (cache_end + part_1_len) % size
+                cache[cache_end:cache_end + part_1_len] = chunk[chunk_start:chunk_start + part_1_len]
+                cache_end = (cache_end + part_1_len) % size
 
                 if part_2_len:
                     cache[cache_end:cache_end + part_2_len] = chunk[chunk_start + part_1_len:chunk_start + part_1_len + part_2_len]
@@ -249,17 +248,13 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             part_2_start = 0
             part_2_end = (dist - (part_1_end - part_1_start)) if (dist - (part_1_end - part_1_start)) > 0 else 0
 
-            while length:
+            parts = cache[part_1_start:part_1_end] + cache[part_2_start:part_2_end]
+            len_parts = _len(parts)
 
-                to_yield = cache[part_1_start:part_1_end][:length]
-                length -= _len(to_yield)
-                if to_yield:
-                    yield to_yield
+            num_repeats = length // len_parts
+            extra = length - num_repeats * len_parts
 
-                to_yield = cache[part_2_start:part_2_end][:length]
-                length -= _len(to_yield)
-                if to_yield:
-                    yield to_yield
+            yield parts * num_repeats + parts[:extra]
 
         return via_cache, from_cache
 
