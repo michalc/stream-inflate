@@ -210,7 +210,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             while num_bytes:
                 yield yield_bytes_up_to
 
-        return get_bits, get_bytes, yield_bytes
+        return get_bit, get_bits, get_bytes, yield_bytes
 
     def get_backwards_cache(size):
         cache = bytearray(size)
@@ -348,12 +348,12 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
         return dict(yield_codes())
 
-    def get_huffman_value(get_bits, codes):
+    def get_huffman_value(get_bit, codes):
         length = 0
         code = 0
         while True:
             length += 1
-            code = (code << 1) | ord((yield from get_bits(1)))
+            code = (code << 1) | (yield get_bit)
             try:
                 return codes[(length, code)]
             except KeyError:
@@ -365,13 +365,13 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             result[i] = ord((yield from get_bits(3)))
         return tuple(result)
 
-    def get_code_lengths(get_bits, code_length_codes, num_codes):
+    def get_code_lengths(get_bit, get_bits, code_length_codes, num_codes):
         result = [0] * num_codes
 
         i = 0
         previous = None
         while i < num_codes:
-            code = yield from get_huffman_value(get_bits, code_length_codes)
+            code = yield from get_huffman_value(get_bit, code_length_codes)
             if code < 16:
                 previous = code
                 result[i] = code
@@ -395,7 +395,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     def yield_from_cache(dist, length):
         return DeferredYielder(can_proceed=_true, to_yield=_empty_tuple, num_from_cache=(dist, length), return_value=_none)
 
-    def inflate(get_bits, get_bytes, yield_bytes):
+    def inflate(get_bit, get_bits, get_bytes, yield_bytes):
         b_final = b'\0'
 
         while not b_final[0]:
@@ -426,7 +426,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 )
                 code_length_codes = get_huffman_codes(code_length_code_lengths)
 
-                dynamic_code_lengths = yield from get_code_lengths(get_bits, code_length_codes, num_literal_length_codes + num_dist_codes)
+                dynamic_code_lengths = yield from get_code_lengths(get_bit, get_bits, code_length_codes, num_literal_length_codes + num_dist_codes)
                 dynamic_literal_code_lengths = dynamic_code_lengths[:num_literal_length_codes]
                 dynamic_dist_code_lengths = dynamic_code_lengths[num_literal_length_codes:]
 
@@ -434,7 +434,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 backwards_dist_codes = get_huffman_codes(dynamic_dist_code_lengths)
 
             while True:
-                literal_stop_or_length_code = yield from get_huffman_value(get_bits, literal_stop_or_length_codes)
+                literal_stop_or_length_code = yield from get_huffman_value(get_bit, literal_stop_or_length_codes)
                 if literal_stop_or_length_code < 256:
                     yield yield_exactly(bytes((literal_stop_or_length_code,)))
                 elif literal_stop_or_length_code == 256:
@@ -443,7 +443,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                     length_extra_bits, length_diff = length_extra_bits_diffs[literal_stop_or_length_code - 257]
                     length_extra = int.from_bytes((yield from get_bits(length_extra_bits)), byteorder='little')
 
-                    code = yield from get_huffman_value(get_bits, backwards_dist_codes)
+                    code = yield from get_huffman_value(get_bit, backwards_dist_codes)
                     dist_extra_bits, dist_diff = dist_extra_bits_diffs[code]
                     dist_extra = int.from_bytes((yield from get_bits(dist_extra_bits)), byteorder='little')
 
@@ -451,8 +451,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
     it_append, it_next = get_iterable_queue()
     reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to, reader_num_bytes_unconsumed = get_readers(it_next)
-    get_bits, get_bytes, yield_bytes = get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to)
+    get_bit, get_bits, get_bytes, yield_bytes = get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to)
     via_cache, from_cache = get_backwards_cache(cache_size)
-    run, is_done = get_runner(it_append, via_cache, from_cache, inflate(get_bits, get_bytes, yield_bytes))
+    run, is_done = get_runner(it_append, via_cache, from_cache, inflate(get_bit, get_bits, get_bytes, yield_bytes))
 
     return paginate(run, chunk_size), is_done, reader_num_bytes_unconsumed
