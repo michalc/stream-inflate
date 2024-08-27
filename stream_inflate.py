@@ -363,10 +363,9 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         while True:
             length += 1
             code = (code << 1) | (yield get_bit)
-            try:
-                return codes[(length, code)]
-            except KeyError:
-                continue
+            value = codes.get((length, code))
+            if value is not None:
+                return value
 
     def get_code_length_code_lengths(num_length_codes, get_bits):
         result = [0] * num_length_codes
