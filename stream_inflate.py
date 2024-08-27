@@ -174,6 +174,15 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         get_byte = DeferredYielder(can_proceed=reader_has_byte, to_yield=_empty_tuple, num_from_cache=None, return_value=reader_get_byte)
 
         def get_bits(num_bits):
+            out = 0
+            out_offset_bit = 0
+
+            for out_offset_bit in range(0, num_bits):
+                out |= (yield get_bit) << out_offset_bit
+
+            return out
+
+        def get_bits_as_bytes(num_bits):
             out = bytearray(-(-num_bits // 8))
             out_offset_bit = 0
 
@@ -210,7 +219,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             while num_bytes:
                 yield yield_bytes_up_to
 
-        return get_bit, get_bits, get_bytes, yield_bytes
+        return get_bit, get_bits, get_bits_as_bytes, get_bytes, yield_bytes
 
     def get_backwards_cache(size):
         cache = bytearray(size)
@@ -362,7 +371,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     def get_code_length_code_lengths(num_length_codes, get_bits):
         result = [0] * num_length_codes
         for i in range(0, num_length_codes):
-            result[i] = ord((yield from get_bits(3)))
+            result[i] = (yield from get_bits(3))
         return tuple(result)
 
     def get_code_lengths(get_bit, get_bits, code_length_codes, num_codes):
@@ -377,14 +386,14 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 result[i] = code
                 i += 1
             elif code == 16:
-                for _ in range(0, 3 + ord((yield from get_bits(2)))):
+                for _ in range(0, 3 + (yield from get_bits(2))):
                     result[i] = previous
                     i += 1
             elif code == 17:
-                i += 3 + ord((yield from get_bits(3)))
+                i += 3 + (yield from get_bits(3))
                 previous = 0
             elif code == 18:
-                i += 11 + ord((yield from get_bits(7)))
+                i += 11 + (yield from get_bits(7))
                 previous = 0
 
         return result
@@ -395,29 +404,29 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     def yield_from_cache(dist, length):
         return DeferredYielder(can_proceed=_true, to_yield=_empty_tuple, num_from_cache=(dist, length), return_value=_none)
 
-    def inflate(get_bit, get_bits, get_bytes, yield_bytes):
-        b_final = b'\0'
+    def inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, yield_bytes):
+        b_final = 0
 
-        while not b_final[0]:
+        while not b_final:
             b_final = yield from get_bits(1)
             b_type = yield from get_bits(2)
 
-            if b_type == b'\3':
+            if b_type == 3:
                 raise UnsupportedBlockType(b_type)
 
-            if b_type == b'\0':
+            if b_type == 0:
                 b_len = int.from_bytes((yield from get_bytes(2)), byteorder='little')
                 yield from get_bytes(2)
                 yield from yield_bytes(b_len)
                 continue
 
-            if b_type == b'\1':
+            if b_type == 1:
                 literal_stop_or_length_codes = get_huffman_codes(literal_stop_or_length_code_lengths)
                 backwards_dist_codes = get_huffman_codes(dist_code_lengths)
             else:
-                num_literal_length_codes = ord((yield from get_bits(5))) + 257
-                num_dist_codes = ord((yield from get_bits(5))) + 1
-                num_length_codes = ord((yield from get_bits(4))) + 4
+                num_literal_length_codes = (yield from get_bits(5)) + 257
+                num_dist_codes = (yield from get_bits(5)) + 1
+                num_length_codes = (yield from get_bits(4)) + 4
 
                 code_length_code_lengths = (yield from get_code_length_code_lengths(num_length_codes, get_bits)) + ((0,) * (19 - num_length_codes))
                 code_length_code_lengths = tuple(
@@ -441,18 +450,18 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                     break
                 else:
                     length_extra_bits, length_diff = length_extra_bits_diffs[literal_stop_or_length_code - 257]
-                    length_extra = int.from_bytes((yield from get_bits(length_extra_bits)), byteorder='little')
+                    length_extra = int.from_bytes((yield from get_bits_as_bytes(length_extra_bits)), byteorder='little')
 
                     code = yield from get_huffman_value(get_bit, backwards_dist_codes)
                     dist_extra_bits, dist_diff = dist_extra_bits_diffs[code]
-                    dist_extra = int.from_bytes((yield from get_bits(dist_extra_bits)), byteorder='little')
+                    dist_extra = int.from_bytes((yield from get_bits_as_bytes(dist_extra_bits)), byteorder='little')
 
                     yield yield_from_cache(dist=dist_extra + dist_diff, length=length_extra + length_diff)
 
     it_append, it_next = get_iterable_queue()
     reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to, reader_num_bytes_unconsumed = get_readers(it_next)
-    get_bit, get_bits, get_bytes, yield_bytes = get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to)
+    get_bit, get_bits, get_bits_as_bytes, get_bytes, yield_bytes = get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to)
     via_cache, from_cache = get_backwards_cache(cache_size)
-    run, is_done = get_runner(it_append, via_cache, from_cache, inflate(get_bit, get_bits, get_bytes, yield_bytes))
+    run, is_done = get_runner(it_append, via_cache, from_cache, inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, yield_bytes))
 
     return paginate(run, chunk_size), is_done, reader_num_bytes_unconsumed
