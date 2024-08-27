@@ -406,6 +406,21 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     def inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, yield_bytes):
         b_final = 0
 
+        # A buffer to avoid yielding every byte and going back into _run. I suspect could/should be
+        # integrated with the main cache to avoid copying (and probably involve less code)
+        buffered = 0
+        buffer = bytearray(cache_size)
+        def yield_buffer_if_any():
+            nonlocal buffered
+            if buffered:
+                yield yield_exactly(buffer[:buffered])
+                buffered = 0
+        def yield_buffer_if_full():
+            nonlocal buffered
+            if buffered == len(buffer):
+                yield yield_exactly(buffer)
+                buffered = 0
+
         while not b_final:
             b_final = yield from get_bits(1)
             b_type = yield from get_bits(2)
@@ -444,7 +459,9 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             while True:
                 literal_stop_or_length_code = yield from get_huffman_value(get_bit, literal_stop_or_length_codes)
                 if literal_stop_or_length_code < 256:
-                    yield yield_exactly(bytes((literal_stop_or_length_code,)))
+                    yield from yield_buffer_if_full()
+                    buffer[buffered] = literal_stop_or_length_code
+                    buffered += 1
                 elif literal_stop_or_length_code == 256:
                     break
                 else:
@@ -455,7 +472,10 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                     dist_extra_bits, dist_diff = dist_extra_bits_diffs[code]
                     dist_extra = int.from_bytes((yield from get_bits_as_bytes(dist_extra_bits)), byteorder='little')
 
+                    yield from yield_buffer_if_any()
                     yield yield_from_cache(dist=dist_extra + dist_diff, length=length_extra + length_diff)
+
+        yield from yield_buffer_if_any()
 
     it_append, it_next = get_iterable_queue()
     reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to, reader_num_bytes_unconsumed = get_readers(it_next)
