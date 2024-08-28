@@ -265,10 +265,11 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             if dist > cache_len:
                 raise Exception('Searching backwards too far', dist, _len(cache))
 
+            min_length_dist = dist if dist < length else length
             part_1_start = (cache_end - dist) % cache_size
-            part_1_end = (part_1_start + dist) if (part_1_start + dist) < cache_size else cache_size
+            part_1_end = (part_1_start + min_length_dist) if (part_1_start + min_length_dist) < cache_size else cache_size
             part_2_start = 0
-            part_2_end = (dist - (part_1_end - part_1_start)) if (dist - (part_1_end - part_1_start)) > 0 else 0
+            part_2_end = min_length_dist - (part_1_end - part_1_start)
 
             parts = cache[part_1_start:part_1_end] + cache[part_2_start:part_2_end]
             len_parts = _len(parts)
