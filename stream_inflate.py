@@ -203,7 +203,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
             return bytes(out)
 
-        return get_bit, get_bits, get_bits_as_bytes, get_bytes, yield_bytes
+        return get_bit, get_bits, get_bits_as_bytes, get_bytes
 
     def get_backwards_cache(size):
         cache = bytearray(size)
@@ -474,7 +474,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
     it_append, it_next = get_iterable_queue()
     reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to, reader_num_bytes_unconsumed = get_readers(it_next)
-    get_bit, get_bits, get_bits_as_bytes, get_bytes, yield_bytes = get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to)
+    get_bit, get_bits, get_bits_as_bytes, get_bytes = get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to)
     via_cache, from_cache = get_backwards_cache(cache_size)
     run, is_done = get_runner(it_append, via_cache, from_cache, inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, reader_yield_bytes_up_to))
 
