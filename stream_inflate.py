@@ -204,6 +204,40 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
         return get_bit, get_bits, get_bits_as_bytes, get_bytes
 
+    def paginate(get_bytes_iter, page_size):
+
+        def _paginate(bytes_iter):
+            chunk = b''
+            offset = 0
+            it = iter(bytes_iter)
+
+            def up_to_page_size(num):
+                nonlocal chunk, offset
+
+                while num:
+                    if offset == len(chunk):
+                        try:
+                            chunk = next(it)
+                        except StopIteration:
+                            break
+                        else:
+                            offset = 0
+                    to_yield = min(num, len(chunk) - offset)
+                    offset = offset + to_yield
+                    num -= to_yield
+                    yield chunk[offset - to_yield:offset]
+
+            while True:
+                page = b''.join(up_to_page_size(page_size))
+                if not page:
+                    break
+                yield page
+
+        def _run(*args, **kwargs):
+            yield from _paginate(get_bytes_iter(*args, **kwargs))
+
+        return _run
+
     def get_backwards_cache(size):
         cache = bytearray(size)
         cache_end = 0
@@ -250,135 +284,67 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
         return via_cache, from_cache
 
-    def get_runner(append, alg):
-        is_done = False
-        curr_deferred = None
-        prev_deferred = None
-
-        def _is_done():
-            return is_done
-
-        def _run(new_iterable):
-            nonlocal is_done, curr_deferred, prev_deferred
-
-            append(new_iterable)
-
-            while True:
-                if curr_deferred is None:
-                    try:
-                        curr_deferred = \
-                            next(alg) if prev_deferred is None else \
-                            alg.send(prev_deferred.return_value())
-                    except StopIteration:
-                        break
-                if not curr_deferred.can_proceed():
-                    return
-
-                if curr_deferred.to_yield:
-                    yield from curr_deferred.to_yield
-
-                prev_deferred = curr_deferred
-                curr_deferred = None
-
-            is_done = True
-
-        return _run, _is_done
-
-    def paginate(get_bytes_iter, page_size):
-
-        def _paginate(bytes_iter):
-            chunk = b''
-            offset = 0
-            it = iter(bytes_iter)
-
-            def up_to_page_size(num):
-                nonlocal chunk, offset
-
-                while num:
-                    if offset == len(chunk):
-                        try:
-                            chunk = next(it)
-                        except StopIteration:
-                            break
-                        else:
-                            offset = 0
-                    to_yield = min(num, len(chunk) - offset)
-                    offset = offset + to_yield
-                    num -= to_yield
-                    yield chunk[offset - to_yield:offset]
-
-            while True:
-                page = b''.join(up_to_page_size(page_size))
-                if not page:
-                    break
-                yield page
-
-        def _run(*args, **kwargs):
-            yield from _paginate(get_bytes_iter(*args, **kwargs))
-
-        return _run
-
-    def get_huffman_codes(lengths):
-
-        def yield_codes():
-            max_bits = max(lengths)
-            bl_count = defaultdict(int, Counter(lengths))
-            next_code = {}
-            code = 0
-            bl_count[0] = 0
-            for bits in range(1, max_bits + 1):
-                 code = (code + bl_count[bits - 1]) << 1;
-                 next_code[bits] = code
-
-            for value, length in enumerate(lengths):
-                if length != 0:
-                    next_code[length] += 1
-                    yield (length, next_code[length] - 1), value
-
-        return dict(yield_codes())
-
-    def get_huffman_value(get_bit, codes):
-        length = 0
-        code = 0
-        while True:
-            length += 1
-            code = (code << 1) | (yield get_bit)
-            value = codes.get((length, code))
-            if value is not None:
-                return value
-
-    def get_code_length_code_lengths(num_length_codes, get_bits):
-        result = [0] * num_length_codes
-        for i in range(0, num_length_codes):
-            result[i] = (yield from get_bits(3))
-        return tuple(result)
-
-    def get_code_lengths(get_bit, get_bits, code_length_codes, num_codes):
-        result = [0] * num_codes
-
-        i = 0
-        previous = None
-        while i < num_codes:
-            code = yield from get_huffman_value(get_bit, code_length_codes)
-            if code < 16:
-                previous = code
-                result[i] = code
-                i += 1
-            elif code == 16:
-                for _ in range(0, 3 + (yield from get_bits(2))):
-                    result[i] = previous
-                    i += 1
-            elif code == 17:
-                i += 3 + (yield from get_bits(3))
-                previous = 0
-            elif code == 18:
-                i += 11 + (yield from get_bits(7))
-                previous = 0
-
-        return result
-
     def inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, reader_yield_bytes_up_to, via_cache, from_cache):
         b_final = 0
+
+        def get_huffman_codes(lengths):
+
+            def yield_codes():
+                max_bits = max(lengths)
+                bl_count = defaultdict(int, Counter(lengths))
+                next_code = {}
+                code = 0
+                bl_count[0] = 0
+                for bits in range(1, max_bits + 1):
+                     code = (code + bl_count[bits - 1]) << 1;
+                     next_code[bits] = code
+
+                for value, length in enumerate(lengths):
+                    if length != 0:
+                        next_code[length] += 1
+                        yield (length, next_code[length] - 1), value
+
+            return dict(yield_codes())
+
+        def get_huffman_value(codes):
+            length = 0
+            code = 0
+            while True:
+                length += 1
+                code = (code << 1) | (yield get_bit)
+                value = codes.get((length, code))
+                if value is not None:
+                    return value
+
+        def get_code_length_code_lengths(num_length_codes):
+            result = [0] * num_length_codes
+            for i in range(0, num_length_codes):
+                result[i] = (yield from get_bits(3))
+            return tuple(result)
+
+        def get_code_lengths(code_length_codes, num_codes):
+            result = [0] * num_codes
+
+            i = 0
+            previous = None
+            while i < num_codes:
+                code = yield from get_huffman_value(code_length_codes)
+                if code < 16:
+                    previous = code
+                    result[i] = code
+                    i += 1
+                elif code == 16:
+                    for _ in range(0, 3 + (yield from get_bits(2))):
+                        result[i] = previous
+                        i += 1
+                elif code == 17:
+                    i += 3 + (yield from get_bits(3))
+                    previous = 0
+                elif code == 18:
+                    i += 11 + (yield from get_bits(7))
+                    previous = 0
+
+            return result
 
         def yield_bytes(num_bytes):
 
@@ -434,14 +400,14 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 num_dist_codes = (yield from get_bits(5)) + 1
                 num_length_codes = (yield from get_bits(4)) + 4
 
-                code_length_code_lengths = (yield from get_code_length_code_lengths(num_length_codes, get_bits)) + ((0,) * (19 - num_length_codes))
+                code_length_code_lengths = (yield from get_code_length_code_lengths(num_length_codes)) + ((0,) * (19 - num_length_codes))
                 code_length_code_lengths = tuple(
                     v for i, v in
                     sorted(enumerate(code_length_code_lengths), key=lambda x: code_lengths_alphabet[x[0]])
                 )
                 code_length_codes = get_huffman_codes(code_length_code_lengths)
 
-                dynamic_code_lengths = yield from get_code_lengths(get_bit, get_bits, code_length_codes, num_literal_length_codes + num_dist_codes)
+                dynamic_code_lengths = yield from get_code_lengths(code_length_codes, num_literal_length_codes + num_dist_codes)
                 dynamic_literal_code_lengths = dynamic_code_lengths[:num_literal_length_codes]
                 dynamic_dist_code_lengths = dynamic_code_lengths[num_literal_length_codes:]
 
@@ -449,7 +415,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 backwards_dist_codes = get_huffman_codes(dynamic_dist_code_lengths)
 
             while True:
-                literal_stop_or_length_code = yield from get_huffman_value(get_bit, literal_stop_or_length_codes)
+                literal_stop_or_length_code = yield from get_huffman_value(literal_stop_or_length_codes)
                 if literal_stop_or_length_code < 256:
                     yield from yield_buffer_if_full()
                     buffer[buffered] = literal_stop_or_length_code
@@ -460,7 +426,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                     length_extra_bits, length_diff = length_extra_bits_diffs[literal_stop_or_length_code - 257]
                     length_extra = int.from_bytes((yield from get_bits_as_bytes(length_extra_bits)), byteorder='little')
 
-                    code = yield from get_huffman_value(get_bit, backwards_dist_codes)
+                    code = yield from get_huffman_value(backwards_dist_codes)
                     dist_extra_bits, dist_diff = dist_extra_bits_diffs[code]
                     dist_extra = int.from_bytes((yield from get_bits_as_bytes(dist_extra_bits)), byteorder='little')
 
@@ -469,10 +435,45 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
         yield from yield_buffer_if_any()
 
+    def get_runner(append, inflater):
+        is_done = False
+        curr_deferred = None
+        prev_deferred = None
+
+        def _is_done():
+            return is_done
+
+        def _run(new_iterable):
+            nonlocal is_done, curr_deferred, prev_deferred
+
+            append(new_iterable)
+
+            while True:
+                if curr_deferred is None:
+                    try:
+                        curr_deferred = \
+                            next(inflater) if prev_deferred is None else \
+                            inflater.send(prev_deferred.return_value())
+                    except StopIteration:
+                        break
+                if not curr_deferred.can_proceed():
+                    return
+
+                if curr_deferred.to_yield:
+                    yield from curr_deferred.to_yield
+
+                prev_deferred = curr_deferred
+                curr_deferred = None
+
+            is_done = True
+
+        return _run, _is_done
+
     it_append, it_next = get_iterable_queue()
     reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to, reader_num_bytes_unconsumed = get_readers(it_next)
     get_bit, get_bits, get_bits_as_bytes, get_bytes = get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to)
     via_cache, from_cache = get_backwards_cache(cache_size)
-    run, is_done = get_runner(it_append, inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, reader_yield_bytes_up_to, via_cache, from_cache))
+    inflater = inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, reader_yield_bytes_up_to, via_cache, from_cache)
+    run, is_done = get_runner(it_append, inflater)
 
     return paginate(run, chunk_size), is_done, reader_num_bytes_unconsumed
