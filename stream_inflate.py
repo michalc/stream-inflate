@@ -203,18 +203,6 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
             return bytes(out)
 
-        def yield_bytes(num_bytes):
-
-            def to_yield():
-                nonlocal num_bytes
-
-                for chunk in reader_yield_bytes_up_to(num_bytes):
-                    num_bytes -= len(chunk)
-                    yield chunk
-
-            while num_bytes:
-                yield DeferredYielder(can_proceed=reader_has_byte, to_yield=to_yield(), num_from_cache=None, return_value=_none)
-
         return get_bit, get_bits, get_bits_as_bytes, get_bytes, yield_bytes
 
     def get_backwards_cache(size):
@@ -392,13 +380,25 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
         return result
 
+    def yield_bytes(reader_yield_bytes_up_to, num_bytes):
+
+        def to_yield():
+            nonlocal num_bytes
+
+            for chunk in reader_yield_bytes_up_to(num_bytes):
+                num_bytes -= len(chunk)
+                yield chunk
+
+        while num_bytes:
+            yield DeferredYielder(can_proceed=reader_has_byte, to_yield=to_yield(), num_from_cache=None, return_value=_none)
+
     def yield_exactly(bytes_to_yield):
         return DeferredYielder(can_proceed=_true, to_yield=(bytes_to_yield,), num_from_cache=None, return_value=_none)
 
     def yield_from_cache(dist, length):
         return DeferredYielder(can_proceed=_true, to_yield=None, num_from_cache=(dist, length), return_value=_none)
 
-    def inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, yield_bytes):
+    def inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, reader_yield_bytes_up_to):
         b_final = 0
 
         # A buffer to avoid yielding every byte and going back into _run. I suspect could/should be
@@ -426,7 +426,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             if b_type == 0:
                 b_len = int.from_bytes((yield from get_bytes(2)), byteorder='little')
                 yield from get_bytes(2)
-                yield from yield_bytes(b_len)
+                yield from yield_bytes(reader_yield_bytes_up_to, b_len)
                 continue
 
             if b_type == 1:
@@ -476,6 +476,6 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to, reader_num_bytes_unconsumed = get_readers(it_next)
     get_bit, get_bits, get_bits_as_bytes, get_bytes, yield_bytes = get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to)
     via_cache, from_cache = get_backwards_cache(cache_size)
-    run, is_done = get_runner(it_append, via_cache, from_cache, inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, yield_bytes))
+    run, is_done = get_runner(it_append, via_cache, from_cache, inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, reader_yield_bytes_up_to))
 
     return paginate(run, chunk_size), is_done, reader_num_bytes_unconsumed
