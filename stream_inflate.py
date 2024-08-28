@@ -175,7 +175,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             out_offset_bit = 0
 
             for out_offset_bit in range(0, num_bits):
-                out |= (yield get_bit) << out_offset_bit
+                out |= (reader_get_bit() if reader_has_bit() else (yield get_bit)) << out_offset_bit
 
             return out
 
@@ -184,7 +184,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             out_offset_bit = 0
 
             while num_bits:
-                bit = yield get_bit
+                bit = (reader_get_bit() if reader_has_bit() else (yield get_bit))
                 out[out_offset_bit // 8] |= bit << (out_offset_bit % 8)
 
                 num_bits -= 1
@@ -197,7 +197,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             out_offset = 0
 
             while out_offset != num_bytes:
-                out[out_offset] = yield get_byte
+                out[out_offset] = (reader_get_byte() if reader_has_byte() else (yield get_byte))
                 out_offset += 1
 
             return bytes(out)
@@ -303,7 +303,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             code = 0
             while True:
                 length += 1
-                code = (code << 1) | (yield get_bit)
+                code = (code << 1) | (reader_get_bit() if reader_has_bit() else (yield get_bit))
                 value = codes.get((length, code))
                 if value is not None:
                     return value
