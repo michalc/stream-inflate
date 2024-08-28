@@ -71,8 +71,6 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         return True
     def _none():
         return None
-    def _empty_tuple():
-        return ()
 
     def get_iterable_queue():
         next_it = None
@@ -170,8 +168,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     # Bit/byte readers that are DeferredYielder
     def get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to):
 
-        get_bit = DeferredYielder(can_proceed=reader_has_bit, to_yield=_empty_tuple, num_from_cache=None, return_value=reader_get_bit)
-        get_byte = DeferredYielder(can_proceed=reader_has_byte, to_yield=_empty_tuple, num_from_cache=None, return_value=reader_get_byte)
+        get_bit = DeferredYielder(can_proceed=reader_has_bit, to_yield=None, num_from_cache=None, return_value=reader_get_bit)
+        get_byte = DeferredYielder(can_proceed=reader_has_byte, to_yield=None, num_from_cache=None, return_value=reader_get_byte)
 
         def get_bits(num_bits):
             out = 0
@@ -214,10 +212,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                     num_bytes -= len(chunk)
                     yield chunk
 
-            yield_bytes_up_to = DeferredYielder(can_proceed=reader_has_byte, to_yield=to_yield, num_from_cache=None, return_value=_none)
-
             while num_bytes:
-                yield yield_bytes_up_to
+                yield DeferredYielder(can_proceed=reader_has_byte, to_yield=to_yield(), num_from_cache=None, return_value=_none)
 
         return get_bit, get_bits, get_bits_as_bytes, get_bytes, yield_bytes
 
@@ -292,9 +288,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                     return
 
                 # via_cache and from_cache are unfortunately expensive, so we avoid calling them if we can
-                to_y = curr_deferred.to_yield()
-                if to_y:
-                    yield from via_cache(to_y)
+                if curr_deferred.to_yield:
+                    yield from via_cache(curr_deferred.to_yield)
                 if curr_deferred.num_from_cache:
                     yield from via_cache(from_cache(curr_deferred.num_from_cache[0], curr_deferred.num_from_cache[1]))
                 prev_deferred = curr_deferred
@@ -398,10 +393,10 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
         return result
 
     def yield_exactly(bytes_to_yield):
-        return DeferredYielder(can_proceed=_true, to_yield=lambda: (bytes_to_yield,), num_from_cache=None, return_value=_none)
+        return DeferredYielder(can_proceed=_true, to_yield=(bytes_to_yield,), num_from_cache=None, return_value=_none)
 
     def yield_from_cache(dist, length):
-        return DeferredYielder(can_proceed=_true, to_yield=_empty_tuple, num_from_cache=(dist, length), return_value=_none)
+        return DeferredYielder(can_proceed=_true, to_yield=None, num_from_cache=(dist, length), return_value=_none)
 
     def inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, yield_bytes):
         b_final = 0
