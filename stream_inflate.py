@@ -238,30 +238,26 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
         return _run
 
-    def get_backwards_cache(size):
-        cache = bytearray(size)
-        cache_end = 0
-        cache_len = 0
-        _len = len
+    def inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, reader_yield_bytes_up_to):
 
         def via_cache(bytes_iter):
-            nonlocal cache, cache_end, cache_len
+            nonlocal cache_end, cache_len
 
             for chunk in bytes_iter:
                 chunk_len = _len(chunk)
-                cacheable_chunk_len = chunk_len if chunk_len < size else size
+                cacheable_chunk_len = chunk_len if chunk_len < cache_size else cache_size
                 chunk_start = chunk_len - cacheable_chunk_len
-                part_1_len = (size - cache_end) if (size - cache_end) < cacheable_chunk_len else cacheable_chunk_len
+                part_1_len = (cache_size - cache_end) if (cache_size - cache_end) < cacheable_chunk_len else cacheable_chunk_len
                 part_2_len = cacheable_chunk_len - part_1_len
 
                 cache[cache_end:cache_end + part_1_len] = chunk[chunk_start:chunk_start + part_1_len]
-                cache_end = (cache_end + part_1_len) % size
+                cache_end = (cache_end + part_1_len) % cache_size
 
                 if part_2_len:
                     cache[cache_end:cache_end + part_2_len] = chunk[chunk_start + part_1_len:chunk_start + part_1_len + part_2_len]
-                    cache_end = (cache_end + part_2_len) % size
+                    cache_end = (cache_end + part_2_len) % cache_size
 
-                cache_len = (cache_len + cacheable_chunk_len) if (cache_len + cacheable_chunk_len) < size else size
+                cache_len = (cache_len + cacheable_chunk_len) if (cache_len + cacheable_chunk_len) < cache_size else cache_size
 
                 yield chunk
 
@@ -269,8 +265,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             if dist > cache_len:
                 raise Exception('Searching backwards too far', dist, _len(cache))
 
-            part_1_start = (cache_end - dist) % size
-            part_1_end = (part_1_start + dist) if (part_1_start + dist) < size else size
+            part_1_start = (cache_end - dist) % cache_size
+            part_1_end = (part_1_start + dist) if (part_1_start + dist) < cache_size else cache_size
             part_2_start = 0
             part_2_end = (dist - (part_1_end - part_1_start)) if (dist - (part_1_end - part_1_start)) > 0 else 0
 
@@ -281,11 +277,6 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             extra = length - num_repeats * len_parts
 
             yield parts * num_repeats + parts[:extra]
-
-        return via_cache, from_cache
-
-    def inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, reader_yield_bytes_up_to, via_cache, from_cache):
-        b_final = 0
 
         def get_huffman_codes(lengths):
 
@@ -358,26 +349,21 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             while num_bytes:
                 yield DeferredYielder(can_proceed=reader_has_byte, to_yield=via_cache(to_yield()), return_value=_none)
 
-        def yield_exactly(bytes_to_yield):
-            return DeferredYielder(can_proceed=_true, to_yield=via_cache((bytes_to_yield,)), return_value=_none)
+        def yield_from_cache_without_via(num_bytes):
+            return DeferredYielder(can_proceed=_true, to_yield=from_cache(num_bytes, num_bytes), return_value=_none)
 
         def yield_from_cache(dist, length):
             return DeferredYielder(can_proceed=_true, to_yield=via_cache(from_cache(dist, length)), return_value=_none)
 
-        # A buffer to avoid yielding every byte and going back into _run. I suspect could/should be
-        # integrated with the main cache to avoid copying (and probably involve less code)
-        buffered = 0
-        buffer = bytearray(cache_size)
-        def yield_buffer_if_any():
-            nonlocal buffered
-            if buffered:
-                yield yield_exactly(buffer[:buffered])
-                buffered = 0
-        def yield_buffer_if_full():
-            nonlocal buffered
-            if buffered == len(buffer):
-                yield yield_exactly(buffer)
-                buffered = 0
+        _len = len
+        b_final = 0
+
+        # A circular cache storing the most recent cache_size bytes yielded in the stream, and
+        # bytes that haven't quite yet been yielded, but will be
+        cache = bytearray(cache_size)
+        cache_end = 0
+        cache_len = 0
+        to_yield_in_cache = 0
 
         while not b_final:
             b_final = yield from get_bits(1)
@@ -417,9 +403,14 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             while True:
                 literal_stop_or_length_code = yield from get_huffman_value(literal_stop_or_length_codes)
                 if literal_stop_or_length_code < 256:
-                    yield from yield_buffer_if_full()
-                    buffer[buffered] = literal_stop_or_length_code
-                    buffered += 1
+                    if to_yield_in_cache == cache_size:
+                        yield yield_from_cache_without_via(to_yield_in_cache)
+                        to_yield_in_cache = 0
+
+                    cache[cache_end] = literal_stop_or_length_code
+                    cache_end = (cache_end + 1) % cache_size
+                    cache_len = (cache_len + 1) if (cache_len + 1) < cache_size else cache_size
+                    to_yield_in_cache += 1
                 elif literal_stop_or_length_code == 256:
                     break
                 else:
@@ -430,10 +421,14 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                     dist_extra_bits, dist_diff = dist_extra_bits_diffs[code]
                     dist_extra = int.from_bytes((yield from get_bits_as_bytes(dist_extra_bits)), byteorder='little')
 
-                    yield from yield_buffer_if_any()
+                    if to_yield_in_cache:
+                        yield yield_from_cache_without_via(to_yield_in_cache)
+                        to_yield_in_cache = 0
                     yield yield_from_cache(dist=dist_extra + dist_diff, length=length_extra + length_diff)
 
-        yield from yield_buffer_if_any()
+        if to_yield_in_cache:
+            yield yield_from_cache_without_via(to_yield_in_cache)
+            to_yield_in_cache = 0
 
     def get_runner(append, inflater):
         is_done = False
@@ -472,8 +467,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     it_append, it_next = get_iterable_queue()
     reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to, reader_num_bytes_unconsumed = get_readers(it_next)
     get_bit, get_bits, get_bits_as_bytes, get_bytes = get_deferred_yielder_readers(reader_has_bit, reader_has_byte, reader_get_bit, reader_get_byte, reader_yield_bytes_up_to)
-    via_cache, from_cache = get_backwards_cache(cache_size)
-    inflater = inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, reader_yield_bytes_up_to, via_cache, from_cache)
+    inflater = inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, reader_yield_bytes_up_to)
     run, is_done = get_runner(it_append, inflater)
 
     return paginate(run, chunk_size), is_done, reader_num_bytes_unconsumed
