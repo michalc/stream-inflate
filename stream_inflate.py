@@ -472,3 +472,11 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     run, is_done = get_runner(it_append, inflater)
 
     return paginate(run, chunk_size), is_done, reader_num_bytes_unconsumed
+
+
+class StreamInflateError(ValueError):
+    pass
+
+
+class UnsupportedBlockType(StreamInflateError):
+    pass
