@@ -1,6 +1,9 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = [
+    "setuptools",
+    "Cython>=3.0.0",
+]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "stream-inflate"
@@ -8,7 +11,7 @@ version = "0.0.0.dev0"
 authors = [
   { name="Michal Charemza", email="michal@charemza.name" },
 ]
-description = "Uncompress DEFLATE streams in pure Python"
+description = "Uncompress DEFLATE streams in pure Python (albeit compiled with Cython)"
 readme = "README.md"
 requires-python = ">=3.6.7, !=3.7.0"
 classifiers = [
@@ -22,12 +25,13 @@ dev = [
     "coverage>=6.2",
     "pytest>=6.2.5",
     "pytest-cov>=3.0.0",
+    "Cython>=3.0.0",
+    "setuptools",
+    "build",
 ]
 
 [project.urls]
 "Source" = "https://github.com/michalc/stream-inflate"
 
-[tool.hatch.build]
-include = [
-  "stream_inflate.py",
-]
+[tool.setuptools]
+py-modules = ["stream_inflate"]
