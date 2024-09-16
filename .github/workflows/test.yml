@@ -35,7 +35,9 @@ jobs:
           python-version: '${{ matrix.python-version }}'
       - name: "Install python dependencies"
         run: |
-          pip install ".[dev]"
+          pip install build
+          python -m build
+          pip install $(ls dist/*.whl)[dev]
       - name: "Run tests"
         run: |
           pytest --cov -v

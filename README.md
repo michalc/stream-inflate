@@ -1,6 +1,6 @@
 # stream-inflate [![PyPI package](https://img.shields.io/pypi/v/stream-inflate?label=PyPI%20package)](https://pypi.org/project/stream-inflate/) [![Test suite](https://img.shields.io/github/actions/workflow/status/michalc/stream-inflate/test.yml?label=Test%20suite)](https://github.com/michalc/stream-inflate/actions/workflows/test.yml) [![Code coverage](https://img.shields.io/codecov/c/github/michalc/stream-inflate?label=Code%20coverage)](https://app.codecov.io/gh/michalc/stream-inflate)
 
-Uncompress Deflate and Deflate64 streams in pure Python.
+Uncompress Deflate and Deflate64 streams in pure Python (albeit compiled with Cython).
 
 
 ## Installation
