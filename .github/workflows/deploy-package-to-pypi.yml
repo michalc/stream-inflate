@@ -10,10 +10,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v3
-        with:
-          python-version: 3.11
-
       - name: Update version in pyproject.toml from current git tag
         run: >-
           sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" pyproject.toml
@@ -23,8 +19,10 @@ jobs:
           sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" setup.py
 
       - run: |
-          pip install build
-          python -m build
+          docker run --rm -it -v $PWD:/app quay.io/pypa/manylinux2014_x86_64 bash -c 'cd /app && /opt/python/cp311-cp311/bin/python -m build'
+          docker run --rm -it -v $PWD:/app quay.io/pypa/manylinux2014_x86_64 bash -c 'cd /app && auditwheel repair $(dist/*.whl)'
+          rm dist/*.whl
+          cp wheelhouse/*.whl dist
 
       - uses: actions/upload-artifact@v3
         with:
