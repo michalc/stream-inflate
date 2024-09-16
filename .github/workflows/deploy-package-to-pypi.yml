@@ -20,7 +20,7 @@ jobs:
 
       - run: |
           docker run --rm -v $PWD:/app quay.io/pypa/manylinux2014_x86_64 bash -c 'cd /app && /opt/python/cp311-cp311/bin/python -m build'
-          docker run --rm -v $PWD:/app quay.io/pypa/manylinux2014_x86_64 bash -c 'cd /app && auditwheel repair $(dist/*.whl)'
+          docker run --rm -v $PWD:/app quay.io/pypa/manylinux2014_x86_64 bash -c 'cd /app && auditwheel repair $(ls dist/*.whl)'
           rm dist/*.whl
           cp wheelhouse/*.whl dist
 
