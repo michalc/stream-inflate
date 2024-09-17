@@ -20,13 +20,13 @@ jobs:
           sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" setup.py
 
       - run: >-
-          docker run --rm -v ${{ github.workspace }}:/app quay.io/pypa/manylinux2014_x86_64:2024-09-16-ab73a4b bash -c "
+          docker run --rm -v ${{ github.workspace }}:/app quay.io/pypa/manylinux2014_x86_64:2024-09-16-ab73a4b bash -c '
             cd /app &&
             /opt/python/cp311-cp311/bin/python -m build &&
             auditwheel repair $(ls dist/*.whl) &&
             rm dist/*.whl &&
             cp wheelhouse/*.whl dist
-          "
+          '
 
       - uses: actions/upload-artifact@v4
         with:
