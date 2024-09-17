@@ -7,14 +7,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: quay.io/pypa/manylinux2014_x86_64
-    env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-      ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node16
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
 
       - name: Update version in pyproject.toml from current git tag
         run: >-
@@ -24,11 +19,14 @@ jobs:
         run: >-
           sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" setup.py
 
-      - run: |
-          /opt/python/cp311-cp311/bin/python -m build
-          auditwheel repair $(ls dist/*.whl)
-          rm dist/*.whl
-          cp wheelhouse/*.whl dist
+      - run: >-
+          docker run --rm -v ${{ github.workspace }}:/app quay.io/pypa/manylinux2014_x86_64:2024-09-16-ab73a4b bash -c "
+            cd /app
+            /opt/python/cp311-cp311/bin/python -m build
+            auditwheel repair $(ls dist/*.whl)
+            rm dist/*.whl
+            cp wheelhouse/*.whl dist
+          "
 
       - uses: actions/upload-artifact@v4
         with:
