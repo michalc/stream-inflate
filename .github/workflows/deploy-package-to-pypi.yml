@@ -50,8 +50,7 @@ jobs:
           - "macos-11"
           - "macos-12"
           - "macos-13"
-          - "macos-13-xlarge" # ARM
-          - "macos-14"        # ARM
+          - "macos-14"  # ARM
         python-version:
           - "3.6.7"
           - "3.7.1"
