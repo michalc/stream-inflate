@@ -299,10 +299,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             return dict(yield_codes())
 
         def get_huffman_value(codes):
-            length = 0
             code = 1
             while True:
-                length += 1
                 code = (code << 1) | (reader_get_bit() if reader_has_bit() else (yield get_bit))
                 value = codes.get(code)
                 if value is not None:
