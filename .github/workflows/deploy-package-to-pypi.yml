@@ -14,11 +14,11 @@ jobs:
 
       - name: Update version in pyproject.toml from current git tag
         run: >-
-          sed -i.bak "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" pyproject.toml && rm pyproject.bak
+          sed -i.bak "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" pyproject.toml && rm pyproject.toml.bak
 
       - name: Update version in setup.py from current git tag
         run: >-
-          sed -i.bak "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" setup.py && rm setup.bak
+          sed -i.bak "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" setup.py && rm setup.py.bak
 
       - name: Build packages
         run: >-
@@ -67,11 +67,11 @@ jobs:
 
       - name: Update version in pyproject.toml from current git tag
         run: >-
-          sed -i.bak "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" pyproject.toml && rm pyproject.bak
+          sed -i.bak "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" pyproject.toml && rm pyproject.toml.bak
 
       - name: Update version in setup.py from current git tag
         run: >-
-          sed -i.bak "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" setup.py && rm setup.bak
+          sed -i.bak "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" setup.py && rm setup.py.bak
 
       - name: Build package
         run: |
