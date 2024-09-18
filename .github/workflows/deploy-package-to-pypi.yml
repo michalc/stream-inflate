@@ -142,7 +142,7 @@ jobs:
       - name: Move packages to top level
         run: |
           find ./dist -mindepth 2 -type f -exec mv -t ./dist -i '{}' +
-          rm -R -- */
+          rm -R -- ./dist/*/
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
