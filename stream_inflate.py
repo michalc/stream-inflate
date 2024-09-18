@@ -285,7 +285,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 max_bits = max(lengths)
                 bl_count = defaultdict(int, Counter(lengths))
                 next_code = {}
-                code = 0
+                code = 1
                 bl_count[0] = 0
                 for bits in range(1, max_bits + 1):
                      code = (code + bl_count[bits - 1]) << 1;
@@ -294,17 +294,17 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
                 for value, length in enumerate(lengths):
                     if length != 0:
                         next_code[length] += 1
-                        yield (length, next_code[length] - 1), value
+                        yield next_code[length] - 1, value
 
             return dict(yield_codes())
 
         def get_huffman_value(codes):
             length = 0
-            code = 0
+            code = 1
             while True:
                 length += 1
                 code = (code << 1) | (reader_get_bit() if reader_has_bit() else (yield get_bit))
-                value = codes.get((length, code))
+                value = codes.get(code)
                 if value is not None:
                     return value
 
