@@ -14,11 +14,11 @@ jobs:
 
       - name: Update version in pyproject.toml from current git tag
         run: >-
-          sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" pyproject.toml
+          sed -i.bak "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" pyproject.toml && rm pyproject.bak
 
       - name: Update version in setup.py from current git tag
         run: >-
-          sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" setup.py
+          sed -i.bak "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" setup.py && rm setup.bak
 
       - name: Build packages
         run: >-
@@ -67,14 +67,15 @@ jobs:
 
       - name: Update version in pyproject.toml from current git tag
         run: >-
-          sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" pyproject.toml
+          sed -i.bak "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" pyproject.toml && rm pyproject.bak
 
       - name: Update version in setup.py from current git tag
         run: >-
-          sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" setup.py
+          sed -i.bak "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" setup.py && rm setup.bak
 
       - name: Build package
-        run: >-
+        run: |
+          pip install build
           python -m build --wheel
 
       - uses: actions/upload-artifact@v4
