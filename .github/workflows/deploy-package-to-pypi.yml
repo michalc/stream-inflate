@@ -22,7 +22,14 @@ jobs:
       - run: >-
           docker run --rm -v ${{ github.workspace }}:/app quay.io/pypa/manylinux2014_x86_64:2024-09-16-ab73a4b bash -c '
             cd /app &&
+            /opt/python/cp36-cp36m/bin/python -m build &&
+            /opt/python/cp37-cp37m/bin/python -m build &&
+            /opt/python/cp38-cp38/bin/python -m build &&
+            /opt/python/cp39-cp39/bin/python -m build &&
+            /opt/python/cp310-cp310/bin/python -m build &&
             /opt/python/cp311-cp311/bin/python -m build &&
+            /opt/python/cp312-cp312/bin/python -m build &&
+            /opt/python/cp313-cp313/bin/python -m build &&
             auditwheel repair $(ls dist/*.whl) &&
             rm dist/*.whl &&
             cp wheelhouse/*.whl dist
