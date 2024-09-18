@@ -133,8 +133,16 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          merge-multiple: true
           path: ./dist
+
+      # The "merge-multiple" option of download-artifact seems to cause corruption when there are
+      # multiple files of the same name, which happens because in some different macOS versions
+      # make the exact same Python package. So we avoid that and do a manual move of packages
+      # to the top level for upload
+      - name: Move packages to top level
+        run: |
+          find /dist -mindepth 2 -type f -exec mv -t /dist -i '{}' +
+          rm -R -- */
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
