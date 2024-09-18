@@ -121,7 +121,7 @@ jobs:
           path: ./dist
 
   deploy:
-    needs: [build-linux, build-macos]
+    needs: [build-linux, build-macos, build-windows]
     environment:
       name: pypi
       url: https://pypi.org/project/stream-inflate/
