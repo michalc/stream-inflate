@@ -141,7 +141,7 @@ jobs:
       # to the top level for upload
       - name: Move packages to top level
         run: |
-          find /dist -mindepth 2 -type f -exec mv -t /dist -i '{}' +
+          find ./dist -mindepth 2 -type f -exec mv -t ./dist -i '{}' +
           rm -R -- */
 
       - name: Publish package distributions to PyPI
