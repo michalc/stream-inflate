@@ -279,7 +279,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
             yield parts * num_repeats + parts[:extra]
 
-        def get_huffman_codes(lengths):
+        def get_huffman_codes(lengths) -> dict:
 
             def yield_codes():
                 max_bits = max(lengths)
@@ -298,8 +298,8 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
             return dict(yield_codes())
 
-        def get_huffman_value(codes):
-            code = 1
+        def get_huffman_value(codes: dict):
+            code: int = 1
             while True:
                 code = (code << 1) | (reader_get_bit() if reader_has_bit() else (yield get_bit))
                 value = codes.get(code)
