@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-linux-glibc:
-    name: Build Linux wheels and source package
+    name: Build Linux glibc wheels and source package
     runs-on: ubuntu-latest
 
     steps:
@@ -40,7 +40,7 @@ jobs:
           path: ./dist
 
   build-linux-musl:
-    name: Build Linux wheels and source package
+    name: Build Linux musl wheels
     runs-on: ubuntu-latest
 
     steps:
@@ -62,7 +62,7 @@ jobs:
             /opt/python/cp310-cp310/bin/python -m build --wheel &&
             /opt/python/cp311-cp311/bin/python -m build --wheel &&
             /opt/python/cp312-cp312/bin/python -m build --wheel &&
-            /opt/python/cp313-cp313/bin/python -m build &&
+            /opt/python/cp313-cp313/bin/python -m build --wheel &&
             auditwheel repair $(ls dist/*.whl) &&
             rm dist/*.whl &&
             cp wheelhouse/*.whl dist
