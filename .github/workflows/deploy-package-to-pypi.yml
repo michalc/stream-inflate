@@ -5,7 +5,7 @@ on:
     types: [published]
 
 jobs:
-  build-linux:
+  build-linux-glibc:
     name: Build Linux wheels and source package
     runs-on: ubuntu-latest
 
@@ -36,7 +36,41 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: linux
+          name: linux-glibc
+          path: ./dist
+
+  build-linux-musl:
+    name: Build Linux wheels and source package
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update version in pyproject.toml and setup.py from current git tag
+        run: |
+          sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF_NAME}/g" pyproject.toml
+          sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF_NAME}/g" setup.py
+
+      - name: Build packages
+        run: >-
+          docker run --rm -v ${{ github.workspace }}:/app quay.io/pypa/musllinux_1_1_x86_64:2024-09-16-ab73a4b bash -c '
+            cd /app &&
+            /opt/python/cp36-cp36m/bin/python -m build --wheel &&
+            /opt/python/cp37-cp37m/bin/python -m build --wheel &&
+            /opt/python/cp38-cp38/bin/python -m build --wheel &&
+            /opt/python/cp39-cp39/bin/python -m build --wheel &&
+            /opt/python/cp310-cp310/bin/python -m build --wheel &&
+            /opt/python/cp311-cp311/bin/python -m build --wheel &&
+            /opt/python/cp312-cp312/bin/python -m build --wheel &&
+            /opt/python/cp313-cp313/bin/python -m build &&
+            auditwheel repair $(ls dist/*.whl) &&
+            rm dist/*.whl &&
+            cp wheelhouse/*.whl dist
+          '
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-musl
           path: ./dist
 
   build-macos:
@@ -121,7 +155,7 @@ jobs:
           path: ./dist
 
   deploy:
-    needs: [build-linux, build-macos, build-windows]
+    needs: [build-linux-glibc, build-linux-musl, build-macos, build-windows]
     environment:
       name: pypi
       url: https://pypi.org/project/stream-inflate/
