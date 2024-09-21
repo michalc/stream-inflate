@@ -5,7 +5,7 @@ from struct import Struct
 
 import pytest
 
-from stream_inflate import stream_inflate, stream_inflate64
+from stream_inflate import UnsupportedBlockType, stream_inflate, stream_inflate64
 
 
 @pytest.mark.parametrize("strategy", [zlib.Z_DEFAULT_STRATEGY, zlib.Z_FIXED])
@@ -86,6 +86,13 @@ def test_stream_inflate_many_fixed_huffman():
 
     out = b''.join(stream_inflate()[0]((out,)))
     assert out == b'\x00' * 100000
+
+
+def test_unsupported_block_type():
+    # Manually constuct a "stream" that has a block type of 3, which is not supported
+    # (All 1s in a single byte forces is a quick way to force this: most of the bits are ignored)
+    with pytest.raises(UnsupportedBlockType):
+        b''.join(stream_inflate()[0]((b'\xFF',)))
 
 
 @pytest.mark.parametrize("input_size", [1, 7, 65536])
