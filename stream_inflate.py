@@ -263,7 +263,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
         def from_cache(dist, length):
             if dist > cache_len:
-                raise Exception('Searching backwards too far', dist, _len(cache))
+                raise BackwardsTooFar('Looking backwards {} bytes but only {} bytes in stream so far'.format(dist, cache_len))
 
             min_length_dist = dist if dist < length else length
             part_1_start = (cache_end - dist) % cache_size
@@ -477,4 +477,8 @@ class StreamInflateError(ValueError):
 
 
 class UnsupportedBlockType(StreamInflateError):
+    pass
+
+
+class BackwardsTooFar(StreamInflateError):
     pass
