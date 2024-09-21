@@ -5,7 +5,7 @@ from struct import Struct
 
 import pytest
 
-from stream_inflate import UnsupportedBlockType, stream_inflate, stream_inflate64
+from stream_inflate import BackwardsTooFar, UnsupportedBlockType, stream_inflate, stream_inflate64
 
 
 @pytest.mark.parametrize("strategy", [zlib.Z_DEFAULT_STRATEGY, zlib.Z_FIXED])
@@ -93,6 +93,33 @@ def test_unsupported_block_type():
     # (All 1s in a single byte forces is a quick way to force this: most of the bits are ignored)
     with pytest.raises(UnsupportedBlockType):
         b''.join(stream_inflate()[0]((b'\xFF',)))
+
+
+def test_stream_inflate_backwards_too_far():
+    # Manually constructs a deflate stream that attempts to look backwards too far
+    out = bytearray(2)
+    offset = 0
+    bit_offset = 0
+    def write_bit(bit):
+        nonlocal bit_offset, offset
+        if bit_offset == 8:
+            offset += 1
+            bit_offset = 0
+        out[offset] |= (bit << bit_offset)
+        bit_offset += 1
+    def write_num(num, length):
+        # Probably not the most efficient thing in the world
+        bit_string = "{0:b}".format(num)
+        bit_string = "0" * (length - len(bit_string)) + bit_string
+        for bit in reversed(bit_string):
+            write_bit(int(bit))
+
+    write_bit(1)       # Final block
+    write_num(1, 2)    # Fixed Huffman block
+    write_num(32, 6)   # Code for 258, looking back 1 bytes in stream
+
+    with pytest.raises(BackwardsTooFar):
+        b''.join(stream_inflate()[0]((out,)))
 
 
 @pytest.mark.parametrize("input_size", [1, 7, 65536])
