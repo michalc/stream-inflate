@@ -33,14 +33,10 @@ jobs:
       - uses: "actions/setup-python@v4"
         with:
           python-version: '${{ matrix.python-version }}'
-      - name: "Enable code coverage"
-        run: |
-          echo '# cython: linetrace=True' | cat - stream_inflate.py > temp && mv temp stream_inflate.py
-          echo '# distutils: define_macros=CYTHON_TRACE=1' | cat - stream_inflate.py > temp && mv temp stream_inflate.py
       - name: "Install python dependencies"
         run: |
-          pip install '.[dev]'
-          python setup.py build_ext --inplace
+          STREAM_INFLATE_CODE_COVERAGE=1 pip install '.[dev]'
+          STREAM_INFLATE_CODE_COVERAGE=1 python setup.py build_ext --inplace
       - name: "Run tests"
         run: |
           pytest --cov -v
