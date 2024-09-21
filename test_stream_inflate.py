@@ -59,11 +59,7 @@ def test_stream_inflate64(input_size, output_size):
     def content(input_size):
         offset = 0
         with open('fixtures/deflate64.bin', 'rb') as f:
-            while True:
-                chunk = f.read(input_size)
-                if not chunk:
-                    break
-                yield chunk
+            yield from iter(lambda: f.read(input_size), b'')
 
     uncompressed = b''.join(stream_inflate64(chunk_size=output_size)[0](content(input_size)))
     assert uncompressed == data
