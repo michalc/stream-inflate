@@ -29,8 +29,10 @@ def test_stream_inflate(strategy, level, base_data_len, num_repeats, input_size,
             yield chunk
 
     def compressed_iters(stream, input_size, suspend_size):
-        for i in range(0, len(stream), suspend_size):
-            yield content(stream[i:i + suspend_size], input_size)
+        return (
+            content(stream[i:i + suspend_size], input_size)
+            for i in range(0, len(stream), suspend_size)
+        )
 
     rnd.seed(1)
     data = rnd.getrandbits(base_data_len).to_bytes(base_data_len//8, byteorder='big') * num_repeats
