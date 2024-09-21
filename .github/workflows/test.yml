@@ -35,8 +35,8 @@ jobs:
           python-version: '${{ matrix.python-version }}'
       - name: "Enable code coverage"
         run: |
-          echo "# cython: linetrace=True" >> stream_inflate.py
-          echo "# distutils: define_macros=CYTHON_TRACE=1" >> stream_inflate.py
+          echo '# cython: linetrace=True' | cat - stream_inflate.py > temp && mv temp stream_inflate.py
+          echo '# distutils: define_macros=CYTHON_TRACE=1' | cat - stream_inflate.py > temp && mv temp stream_inflate.py
       - name: "Install python dependencies"
         run: |
           pip install '.[dev]'
