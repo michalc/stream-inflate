@@ -54,6 +54,40 @@ def test_stream_inflate(strategy, level, base_data_len, num_repeats, input_size,
     # Exhaust iters for code coverage reasons
     for _ in iters: pass
 
+
+def test_stream_inflate_many_fixed_huffman():
+    # Manually constructs a deflate stream with more "fixed" huffman values than the cache size,
+    # which forces the code to hit certain lines. Not sure a well behaved compressor would ever
+    # do this, because it wouldn't bother Huffman encoding so many values, and instead use non
+    # compressed blocks
+    out = bytearray(100002)
+    offset = 0
+    bit_offset = 0
+    def write_bit(bit):
+        nonlocal bit_offset, offset
+        if bit_offset == 8:
+            offset += 1
+            bit_offset = 0
+        out[offset] |= (bit << bit_offset)
+        bit_offset += 1
+    def write_num(num, length):
+        # Probably not the most efficient thing in the world
+        bit_string = "{0:b}".format(num)
+        bit_string = "0" * (length - len(bit_string)) + bit_string
+        for bit in reversed(bit_string):
+            write_bit(int(bit))
+
+    write_bit(1)       # Final block
+    write_num(1, 2)    # Fixed Huffman block
+
+    for _ in range(0, 100000):
+        write_num(12, 8)   # Code for zero
+    write_num(0, 7)        # Stop code
+
+    out = b''.join(stream_inflate()[0]((out,)))
+    assert out == b'\x00' * 100000
+
+
 @pytest.mark.parametrize("input_size", [1, 7, 65536])
 @pytest.mark.parametrize("output_size", [1, 7, 65536])
 def test_stream_inflate64(input_size, output_size):
