@@ -44,13 +44,15 @@ def test_stream_inflate(strategy, level, base_data_len, num_repeats, input_size,
 
     uncompress, is_done, num_bytes_unconsumed = stream_inflate(chunk_size=output_size)
     uncompressed = b''
-    iters = compressed_iters(stream, input_size, suspend_size)
+    iters = iter(compressed_iters(stream, input_size, suspend_size))
     while not is_done():
         uncompressed += b''.join(uncompress(next(iters)))
 
     assert uncompressed == data
     assert stream[total_attempted_consumed - num_bytes_unconsumed():] == b'Unconsumed'
 
+    # Exhaust iters for code coverage reasons
+    for _ in iters: pass
 
 @pytest.mark.parametrize("input_size", [1, 7, 65536])
 @pytest.mark.parametrize("output_size", [1, 7, 65536])
