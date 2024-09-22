@@ -98,7 +98,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
     # Low level bit/byte readers
     def get_readers(it_next):
-        chunk = b''
+        chunk: bytes = b''
         offset_byte = 0
         offset_bit = 0
 
@@ -111,7 +111,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
             if offset_byte == len(chunk):
                 try:
-                    chunk = memoryview(it_next())
+                    chunk = it_next()
                 except StopIteration:
                     return False
                 else:
@@ -150,7 +150,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             while num:
                 if offset_byte == len(chunk):
                     try:
-                        chunk = memoryview(it_next())
+                        chunk = it_next()
                     except StopIteration:
                         return
                     offset_byte = 0
@@ -180,7 +180,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             return out
 
         def get_bits_as_bytes(num_bits):
-            out = bytearray(-(-num_bits // 8))
+            out: bytearray = bytearray(-(-num_bits // 8))
             out_offset_bit = 0
 
             while num_bits:
@@ -193,7 +193,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             return bytes(out)
 
         def get_bytes(num_bytes):
-            out = bytearray(num_bytes)
+            out: bytearray = bytearray(num_bytes)
             out_offset = 0
 
             while out_offset != num_bytes:
@@ -299,7 +299,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             return dict(yield_codes())
 
         def get_huffman_value(codes: dict):
-            code: int = 1
+            code = 1
             while True:
                 code = (code << 1) | (reader_get_bit() if reader_has_bit() else (yield get_bit))
                 value = codes.get(code)
@@ -313,7 +313,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             return tuple(result)
 
         def get_code_lengths(code_length_codes, num_codes):
-            result = [0] * num_codes
+            result: list = [0] * num_codes
 
             i = 0
             previous = None
@@ -359,7 +359,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
         # A circular cache storing the most recent cache_size bytes yielded in the stream, and
         # bytes that haven't quite yet been yielded, but will be
-        cache = bytearray(cache_size)
+        cache: bytearray = bytearray(cache_size)
         cache_end = 0
         cache_len = 0
         to_yield_in_cache = 0
