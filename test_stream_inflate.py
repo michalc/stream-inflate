@@ -84,7 +84,7 @@ def test_stream_inflate_many_fixed_huffman():
         write_num(12, 8)   # Code for zero
     write_num(0, 7)        # Stop code
 
-    out = b''.join(stream_inflate()[0]((out,)))
+    out = b''.join(stream_inflate()[0]((bytes(out),)))
     assert out == b'\x00' * 100000
 
 
@@ -119,7 +119,7 @@ def test_stream_inflate_backwards_too_far():
     write_num(32, 6)   # Code for 258, looking back 1 bytes in stream
 
     with pytest.raises(BackwardsTooFar):
-        b''.join(stream_inflate()[0]((out,)))
+        b''.join(stream_inflate()[0]((bytes(out),)))
 
 
 @pytest.mark.parametrize("input_size", [1, 7, 65536])
