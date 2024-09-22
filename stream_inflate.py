@@ -99,22 +99,24 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     # Low level bit/byte readers
     def get_readers(it_next):
         chunk: bytes = b''
+        chunk_len = 0
         offset_byte = 0
         offset_bit = 0
 
         def _has_bit():
-            nonlocal chunk, offset_byte, offset_bit
+            nonlocal chunk, chunk_len, offset_byte, offset_bit
 
             if offset_bit == 8:
                 offset_bit = 0
                 offset_byte += 1
 
-            if offset_byte == len(chunk):
+            if offset_byte == chunk_len:
                 try:
                     chunk = it_next()
                 except StopIteration:
                     return False
                 else:
+                    chunk_len = len(chunk)
                     offset_byte = 0
                     offset_bit = 0
 
@@ -148,11 +150,12 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             # here: we are already on a byte boundary
 
             while num:
-                if offset_byte == len(chunk):
+                if offset_byte == chunk_len:
                     try:
                         chunk = it_next()
                     except StopIteration:
                         return
+                    chunk_len = len(chunk)
                     offset_byte = 0
                 to_yield = min(num, len(chunk) - offset_byte)
                 offset_byte += to_yield
