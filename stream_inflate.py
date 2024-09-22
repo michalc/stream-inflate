@@ -1,7 +1,7 @@
 from collections import Counter, defaultdict, namedtuple
 
 
-def stream_inflate(chunk_size=65536):
+def stream_inflate():
     length_extra_bits_diffs = (
         (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10),
         (1, 11), (1, 13), (1, 15), (1, 17),
@@ -22,10 +22,10 @@ def stream_inflate(chunk_size=65536):
         (13, 16385), (13, 24577),
     )
     cache_size = 32768
-    return _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, chunk_size)
+    return _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size)
 
 
-def stream_inflate64(chunk_size=65536):
+def stream_inflate64():
     length_extra_bits_diffs = (
         (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10),
         (1, 11), (1, 13), (1, 15), (1, 17),
@@ -46,10 +46,10 @@ def stream_inflate64(chunk_size=65536):
         (13, 16385), (13, 24577), (14, 32769), (14, 49153),
     )
     cache_size = 65536
-    return _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, chunk_size)
+    return _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size)
 
 
-def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, chunk_size):
+def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size):
     literal_stop_or_length_code_lengths = \
         (8,) * 144 + \
         (9,) * 112 + \
@@ -207,40 +207,6 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
         return get_bit, get_bits, get_bits_as_bytes, get_bytes
 
-    def paginate(get_bytes_iter, page_size):
-
-        def _paginate(bytes_iter):
-            chunk = b''
-            offset = 0
-            it = iter(bytes_iter)
-
-            def up_to_page_size(num):
-                nonlocal chunk, offset
-
-                while num:
-                    if offset == len(chunk):
-                        try:
-                            chunk = next(it)
-                        except StopIteration:
-                            break
-                        else:
-                            offset = 0
-                    to_yield = min(num, len(chunk) - offset)
-                    offset = offset + to_yield
-                    num -= to_yield
-                    yield chunk[offset - to_yield:offset]
-
-            while True:
-                page = b''.join(up_to_page_size(page_size))
-                if not page:
-                    break
-                yield page
-
-        def _run(*args, **kwargs):
-            yield from _paginate(get_bytes_iter(*args, **kwargs))
-
-        return _run
-
     def inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, reader_yield_bytes_up_to):
 
         def via_cache(bytes_iter):
@@ -264,7 +230,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
 
                 yield chunk
 
-        def from_cache(dist, length):
+        def from_cache(dist, length) -> bytes:
             if dist > cache_len:
                 raise BackwardsTooFar('Looking backwards {} bytes but only {} bytes in stream so far'.format(dist, cache_len))
 
@@ -274,7 +240,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             part_2_start = 0
             part_2_end = min_length_dist - (part_1_end - part_1_start)
 
-            parts = cache[part_1_start:part_1_end] + cache[part_2_start:part_2_end]
+            parts: bytes = bytes(cache[part_1_start:part_1_end]) + bytes(cache[part_2_start:part_2_end])
             len_parts = _len(parts)
 
             num_repeats = length // len_parts
@@ -472,7 +438,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
     inflater = inflate(get_bit, get_bits, get_bits_as_bytes, get_bytes, reader_yield_bytes_up_to)
     run, is_done = get_runner(it_append, inflater)
 
-    return paginate(run, chunk_size), is_done, reader_num_bytes_unconsumed
+    return run, is_done, reader_num_bytes_unconsumed
 
 
 class StreamInflateError(ValueError):

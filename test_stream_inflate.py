@@ -14,8 +14,7 @@ from stream_inflate import BackwardsTooFar, UnsupportedBlockType, stream_inflate
 @pytest.mark.parametrize("num_repeats", [0, 1, 2, 100])
 @pytest.mark.parametrize("input_size", [1, 7, 65536])
 @pytest.mark.parametrize("suspend_size", [1, 7, 65536])
-@pytest.mark.parametrize("output_size", [1, 7, 65536])
-def test_stream_inflate(strategy, level, base_data_len, num_repeats, input_size, suspend_size, output_size):
+def test_stream_inflate(strategy, level, base_data_len, num_repeats, input_size, suspend_size):
     rnd = random.Random()
 
     total_attempted_consumed = 0
@@ -42,7 +41,7 @@ def test_stream_inflate(strategy, level, base_data_len, num_repeats, input_size,
     # Make sure it really is DEFLATEd
     assert zlib.decompress(stream, wbits=-zlib.MAX_WBITS) == data
 
-    uncompress, is_done, num_bytes_unconsumed = stream_inflate(chunk_size=output_size)
+    uncompress, is_done, num_bytes_unconsumed = stream_inflate()
     uncompressed = b''
     iters = iter(compressed_iters(stream, input_size, suspend_size))
     while not is_done():
@@ -123,8 +122,7 @@ def test_stream_inflate_backwards_too_far():
 
 
 @pytest.mark.parametrize("input_size", [1, 7, 65536])
-@pytest.mark.parametrize("output_size", [1, 7, 65536])
-def test_stream_inflate64(input_size, output_size):
+def test_stream_inflate64(input_size):
     with open('fixtures/data64.bin', 'rb') as f:
         data = f.read()
 
@@ -133,5 +131,5 @@ def test_stream_inflate64(input_size, output_size):
         with open('fixtures/deflate64.bin', 'rb') as f:
             yield from iter(lambda: f.read(input_size), b'')
 
-    uncompressed = b''.join(stream_inflate64(chunk_size=output_size)[0](content(input_size)))
+    uncompressed = b''.join(stream_inflate64()[0](content(input_size)))
     assert uncompressed == data
