@@ -143,7 +143,7 @@ def _stream_inflate(length_extra_bits_diffs, dist_extra_bits_diffs, cache_size, 
             return chunk[offset_byte - 1]
 
         def _yield_bytes_up_to(num):
-            nonlocal chunk, offset_byte
+            nonlocal chunk, chunk_len, offset_byte
 
             # This is only ever used when we have an uncompressed block, just after we have
             # fetched the size of the block as whole bytes. So we don't need to worry about bits
