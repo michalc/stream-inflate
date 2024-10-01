@@ -5,8 +5,8 @@ on:
     types: [published]
 
 jobs:
-  build-linux-glibc:
-    name: Build Linux glibc wheels and source package
+  build-linux-glibc-x86-64:
+    name: Build Linux glibc x86-64 wheels and source package
     runs-on: ubuntu-latest
 
     steps:
@@ -36,11 +36,11 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-glibc
+          name: linux-glibc-x86-64
           path: ./dist
 
-  build-linux-musl:
-    name: Build Linux musl wheels
+  build-linux-musl-x86-64:
+    name: Build Linux musl x86-64 wheels
     runs-on: ubuntu-latest
 
     steps:
@@ -70,7 +70,85 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-musl
+          name: linux-musl-x86-64
+          path: ./dist
+
+  build-linux-glibc-aarch64:
+    name: Build Linux glibc aarch64 wheels
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update version in pyproject.toml and setup.py from current git tag
+        run: |
+          sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF_NAME}/g" pyproject.toml
+          sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF_NAME}/g" setup.py
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Build packages
+        run: >-
+          docker run --rm -v ${{ github.workspace }}:/app quay.io/pypa/manylinux2014_aarch64:2024-10-01-57d246f bash -c '
+            cd /app &&
+            /opt/python/cp36-cp36m/bin/python -m build --wheel &&
+            /opt/python/cp37-cp37m/bin/python -m build --wheel &&
+            /opt/python/cp38-cp38/bin/python -m build --wheel &&
+            /opt/python/cp39-cp39/bin/python -m build --wheel &&
+            /opt/python/cp310-cp310/bin/python -m build --wheel &&
+            /opt/python/cp311-cp311/bin/python -m build --wheel &&
+            /opt/python/cp312-cp312/bin/python -m build --wheel &&
+            /opt/python/cp313-cp313/bin/python -m build --wheel &&
+            auditwheel repair $(ls dist/*.whl) &&
+            rm dist/*.whl &&
+            cp wheelhouse/*.whl dist
+          '
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-glibc-aarch64
+          path: ./dist
+
+  build-linux-musl-aarch64:
+    name: Build Linux musl aarch64 wheels
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update version in pyproject.toml and setup.py from current git tag
+        run: |
+          sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF_NAME}/g" pyproject.toml
+          sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF_NAME}/g" setup.py
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Build packages
+        run: >-
+          docker run --rm -v ${{ github.workspace }}:/app quay.io/pypa/musllinux_1_1_aarch64:2024-09-28-6a3e6bb bash -c '
+            cd /app &&
+            /opt/python/cp36-cp36m/bin/python -m build --wheel &&
+            /opt/python/cp37-cp37m/bin/python -m build --wheel &&
+            /opt/python/cp38-cp38/bin/python -m build --wheel &&
+            /opt/python/cp39-cp39/bin/python -m build --wheel &&
+            /opt/python/cp310-cp310/bin/python -m build --wheel &&
+            /opt/python/cp311-cp311/bin/python -m build --wheel &&
+            /opt/python/cp312-cp312/bin/python -m build --wheel &&
+            /opt/python/cp313-cp313/bin/python -m build --wheel &&
+            auditwheel repair $(ls dist/*.whl) &&
+            rm dist/*.whl &&
+            cp wheelhouse/*.whl dist
+          '
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-musl-aarch64
           path: ./dist
 
   build-macos:
