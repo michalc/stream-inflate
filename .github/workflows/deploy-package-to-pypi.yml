@@ -94,6 +94,7 @@ jobs:
           - "3.10.11"
           - "3.11.9"
           - "3.12.6"
+          - "3.13.0"
         exclude:
           - python-version: "3.6.7"
             os: "macos-14"
