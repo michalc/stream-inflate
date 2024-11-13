@@ -40,6 +40,7 @@ jobs:
           - "musllinux_1_1_x86_64"
           - "manylinux2014_aarch64"
           - "musllinux_1_1_aarch64"
+          - "musllinux_1_2_armv7l"
         folder:
           - "cp36-cp36m"
           - "cp37-cp37m"
