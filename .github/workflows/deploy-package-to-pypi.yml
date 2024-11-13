@@ -62,7 +62,7 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
-          platforms: arm64
+          platforms: arm64,arm
 
       - name: Build packages
         run: >-
