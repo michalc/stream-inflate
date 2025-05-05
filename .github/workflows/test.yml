@@ -12,30 +12,32 @@ jobs:
     strategy:
       matrix:
         include:
-          - python-version: "3.6.7"
-            os: "ubuntu-20.04"
-          - python-version: "3.7.1"
-            os: "ubuntu-20.04"
-          - python-version: "3.8.0"
-            os: "ubuntu-20.04"
+          - python-version: "3.7.7"
+            os: "ubuntu-24.04"
+          - python-version: "3.8.2"
+            os: "ubuntu-24.04"
           - python-version: "3.9.0"
-            os: "ubuntu-20.04"
+            os: "ubuntu-24.04"
           - python-version: "3.10.0"
-            os: "ubuntu-20.04"
-          - python-version: "3.11.0"
-            os: "ubuntu-20.04"
+            os: "ubuntu-24.04"
+          - python-version: "3.11.1"
+            os: "ubuntu-24.04"
           - python-version: "3.12.0"
-            os: "ubuntu-20.04"
+            os: "ubuntu-24.04"
     runs-on: ${{ matrix.os }}
     steps:
       - name: "Checkout"
         uses: "actions/checkout@v3"
-      - uses: "actions/setup-python@v4"
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v6
         with:
-          python-version: '${{ matrix.python-version }}'
+          # Pin to be able to install older Python
+          version: "0.6.17"
+          python-version: ${{ matrix.python-version }}
+          activate-environment: true
       - name: "Install python dependencies"
         run: |
-          STREAM_INFLATE_CODE_COVERAGE=1 pip install '.[dev]'
+          STREAM_INFLATE_CODE_COVERAGE=1 uv pip install '.[dev]'
           STREAM_INFLATE_CODE_COVERAGE=1 python setup.py build_ext --inplace
       - name: "Run tests"
         run: |
