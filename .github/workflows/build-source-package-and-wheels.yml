@@ -86,9 +86,9 @@ jobs:
     strategy:
       matrix:
         os:
-          - "macos-12"
           - "macos-13"
           - "macos-14"  # ARM
+          - "macos-15"  # ARM
         python-version:
           - "3.7.7"
           - "3.8.10"
@@ -102,6 +102,8 @@ jobs:
             os: "macos-14"
           - python-version: "3.7.7"
             os: "macos-14"
+          - python-version: "3.7.7"
+            os: "macos-15"
     runs-on: '${{ matrix.os }}'
 
     steps:
