@@ -7,6 +7,11 @@ on:
     branches: [ "main" ]
 
 jobs:
+  build-source-package-and-wheels:
+    uses: ./.github/workflows/build-source-package-and-wheels.yml
+    with:
+      github-ref-name: 'v0.0.0.dev0'
+
   test:
     name: Test
     strategy:
