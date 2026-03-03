@@ -29,6 +29,10 @@ jobs:
             os: "ubuntu-24.04"
           - python-version: "3.12.0"
             os: "ubuntu-24.04"
+          - python-version: "3.13.0"
+            os: "ubuntu-24.04"
+          - python-version: "3.14.0"
+            os: "ubuntu-24.04"
     runs-on: ${{ matrix.os }}
     steps:
       - name: "Checkout"
@@ -37,13 +41,14 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           # Pin to be able to install older Python
-          version: "0.6.17"
+          version: ${{ matrix.python-version == '3.7.7' && '0.6.17' || '0.10.6' }}
           python-version: ${{ matrix.python-version }}
           activate-environment: true
       - name: "Install python dependencies"
+        # Suspect code coverage is contributing factor to cancellation in GitHub actions, but seems fine on Python 3.14
         run: |
-          STREAM_INFLATE_CODE_COVERAGE=1 uv pip install '.[dev]'
-          STREAM_INFLATE_CODE_COVERAGE=1 python setup.py build_ext --inplace
+          CC=clang STREAM_INFLATE_CODE_COVERAGE=${{ matrix.python-version == '3.14.0' && '1' || '0' }} uv pip install '.[dev]'
+          CC=clang STREAM_INFLATE_CODE_COVERAGE=${{ matrix.python-version == '3.14.0' && '1' || '0' }}  python setup.py build_ext --inplace
       - name: "Run tests"
         run: |
           pytest --cov -v

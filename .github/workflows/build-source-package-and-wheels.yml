@@ -41,8 +41,10 @@ jobs:
         image:
           - "manylinux2014_x86_64"
           - "musllinux_1_1_x86_64"
+          - "musllinux_1_2_x86_64"
           - "manylinux2014_aarch64"
           - "musllinux_1_1_aarch64"
+          - "musllinux_1_2_aarch64"
           - "musllinux_1_2_armv7l"
         folder:
           - "cp37-cp37m"
@@ -52,6 +54,19 @@ jobs:
           - "cp311-cp311"
           - "cp312-cp312"
           - "cp313-cp313"
+          - "cp314-cp314"
+        exclude:
+          - image: "musllinux_1_1_x86_64"
+            folder: "cp314-cp314"
+          - image: "musllinux_1_1_aarch64"
+            folder: "cp314-cp314"
+
+    env:
+      # From https://github.com/uktrade/stream-unzip/blob/main/.github/workflows/build-source-package-and-wheels.yml
+      # 2024.10.26-1 supports 3.7 to 3.13 for musl 1.1 and is the last musl 1.1 version
+      # 2025.05.03-1 supports 3.7 to 3.13 for musl 1.2 and manylinux
+      # 2026.03.01-1 is the latest version at the time of writing
+      TAG: ${{ case(startsWith(matrix.image, 'musllinux_1_1_'), '2024.10.26-1', matrix.folder == 'cp314-cp314', '2026.03.01-1', '2025.05.03-1') }}
 
     steps:
       - uses: actions/checkout@v4
@@ -68,7 +83,7 @@ jobs:
 
       - name: Build packages
         run: >-
-          docker run --rm -v ${{ github.workspace }}:/app quay.io/pypa/${{ matrix.image }} bash -c '
+          docker run --rm -v ${{ github.workspace }}:/app quay.io/pypa/${{ matrix.image }}:$TAG bash -c '
             cd /app &&
             /opt/python/${{ matrix.folder }}/bin/python -m build --wheel
             auditwheel repair $(ls dist/*.whl) &&
@@ -86,7 +101,6 @@ jobs:
     strategy:
       matrix:
         os:
-          - "macos-13"
           - "macos-14"  # ARM
           - "macos-15"  # ARM
         python-version:
@@ -97,6 +111,7 @@ jobs:
           - "3.11.9"
           - "3.12.6"
           - "3.13.0"
+          - "3.14.0"
         exclude:
           - python-version: "3.6.7"
             os: "macos-14"
@@ -159,7 +174,7 @@ jobs:
     strategy:
       matrix:
         os:
-          - "windows-2019"
+          - "windows-2022"
         python-version:
           - "3.7.7"
           - "3.8.0"
@@ -168,6 +183,7 @@ jobs:
           - "3.11.0"
           - "3.12.0"
           - "3.13.0"
+          - "3.14.0"
     runs-on: '${{ matrix.os }}'
 
     steps:
