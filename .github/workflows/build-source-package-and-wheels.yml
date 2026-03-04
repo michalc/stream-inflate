@@ -103,6 +103,9 @@ jobs:
         os:
           - "macos-14"  # ARM
           - "macos-15"  # ARM
+          - "macos-15-intel"
+          - "macos-26"  # ARM
+          - "macos-26-intel"
         python-version:
           - "3.7.7"
           - "3.8.10"
@@ -119,6 +122,12 @@ jobs:
             os: "macos-14"
           - python-version: "3.7.7"
             os: "macos-15"
+          - python-version: "3.7.7"
+            os: "macos-15-intel"
+          - python-version: "3.7.7"
+            os: "macos-26"
+          - python-version: "3.7.7"
+            os: "macos-26-intel"
     runs-on: '${{ matrix.os }}'
 
     steps:
